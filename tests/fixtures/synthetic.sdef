@@ -32,5 +32,28 @@
                 <type type="real"/>
             </result>
         </command>
+
+        <event name="opened" code="SYNTeopn" id="opened-event" description="Fired when a synthetic document is opened.">
+            <cocoa class="OpenedEventHandler"/>
+            <parameter name="reference" code="dref" type="text" description="A reference to the opened document."/>
+        </event>
+
+        <enumeration name="export format" code="SYfm" description="File formats supported by the synthetic exporter." inline="2">
+            <enumerator name="csv" code="cmma" description="Comma-separated values."/>
+            <enumerator name="json" code="json" description="JavaScript Object Notation."/>
+            <enumerator name="xml" code="xml1" description="Extensible Markup Language." hidden="yes"/>
+        </enumeration>
+
+        <record-type name="bounding box" code="SYbx" plural="bounding boxes" description="A rectangular bounding box.">
+            <property name="left" code="left" type="real" description="Left edge."/>
+            <property name="top" code="topp" type="real" description="Top edge."/>
+            <property name="right" code="rght" type="real" description="Right edge."/>
+            <property name="bottom" code="botm" type="real" access="r" in-properties="no" description="Bottom edge (read-only, not in `properties of`)."/>
+        </record-type>
+
+        <value-type name="color" code="SYcl" description="An RGB color value.">
+            <cocoa class="NSColor"/>
+            <synonym name="colour"/>
+        </value-type>
     </suite>
 </dictionary>

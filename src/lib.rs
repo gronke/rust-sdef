@@ -34,17 +34,19 @@
 
 #![warn(missing_docs)]
 
+mod command;
+mod decl;
 mod dictionary;
 mod error;
 mod metadata;
-mod parameter;
 mod typeref;
 mod yorn;
 
-pub use dictionary::{Command, Dictionary, Suite};
+pub use command::{Command, DirectParameter, Event, Parameter, Result_};
+pub use decl::{Enumeration, Enumerator, Property, RecordType, ValueType};
+pub use dictionary::{Dictionary, Suite};
 pub use error::Error;
 pub use metadata::{AccessGroup, Cocoa, Documentation, Synonym, Xref};
-pub use parameter::{DirectParameter, Parameter, Result_};
 pub use typeref::TypeRef;
 
 use std::io::Read;

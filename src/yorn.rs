@@ -26,6 +26,25 @@ where
     }
 }
 
+/// Like [`yorn`], but distinguishes "attribute absent" (`None`) from the
+/// explicit `yes`/`no` values. Use this when the DTD's default for an
+/// absent attribute is not `false` (e.g. `property.in-properties` defaults
+/// to `yes` per the sdef man page).
+pub(crate) fn yorn_opt<'de, D>(deserializer: D) -> Result<Option<bool>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw: Option<String> = Option::deserialize(deserializer)?;
+    match raw.as_deref() {
+        Some("yes") => Ok(Some(true)),
+        Some("no") => Ok(Some(false)),
+        None => Ok(None),
+        Some(other) => Err(serde::de::Error::custom(format!(
+            "expected 'yes' or 'no', got {other:?}"
+        ))),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

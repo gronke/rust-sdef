@@ -1,0 +1,9 @@
+# SHA-256 of /System/Library/DTDs/sdef.dtd as shipped on macOS 26.5
+# (Darwin 25.5.0, captured 2026-05-14). The dtd_drift integration test
+# compares this pinned digest against the live system DTD on every
+# `cargo test` invocation on macOS; a mismatch fails the test loudly so a
+# human reviews whether Apple's DTD changes require AST updates.
+#
+# Lines beginning with '#' are ignored. Exactly one non-comment line
+# carrying the lowercase hex digest is expected.
+49e8496713a458eb569025c99c730ec8728add893f6de914df8a2c9a47bfd53b

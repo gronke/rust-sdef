@@ -15,6 +15,13 @@ use crate::yorn::yorn;
 
 /// A `<class>` declares a scriptable object type with properties, elements,
 /// and the verbs it responds to.
+///
+/// The DTD permits the class-contents children (`contents`, `element`,
+/// `property`, `responds-to`, `synonym`, `documentation`, `xref`) in any
+/// order, and real-world sdefs (e.g. Xcode's) interleave them. We rely on
+/// quick-xml's `overlapped-lists` cargo feature to deserialize each child
+/// directly into its typed `Vec` field regardless of order. The same
+/// applies to [`crate::Suite`] and [`ClassExtension`].
 #[derive(Debug, Clone, Deserialize)]
 #[non_exhaustive]
 pub struct Class {
@@ -63,11 +70,11 @@ pub struct Class {
     #[serde(rename = "type", default)]
     pub types: Vec<TypeRef>,
 
-    /// `<property>` children.
+    /// `<property>` children, in document order.
     #[serde(rename = "property", default)]
     pub properties: Vec<Property>,
 
-    /// `<element>` children — to-many relationships.
+    /// `<element>` children — to-many relationships, in document order.
     #[serde(rename = "element", default)]
     pub elements: Vec<Element>,
 
@@ -97,6 +104,9 @@ pub struct Class {
 
 /// A `<class-extension>` adds properties, elements, or `responds-to`
 /// declarations to a class declared elsewhere.
+///
+/// Like [`Class`], relies on quick-xml's `overlapped-lists` feature so that
+/// class-contents children can appear in any order.
 #[derive(Debug, Clone, Deserialize)]
 #[non_exhaustive]
 pub struct ClassExtension {
@@ -128,11 +138,11 @@ pub struct ClassExtension {
     #[serde(rename = "access-group", default)]
     pub access_groups: Vec<AccessGroup>,
 
-    /// `<property>` children added by this extension.
+    /// `<property>` children added by this extension, in document order.
     #[serde(rename = "property", default)]
     pub properties: Vec<Property>,
 
-    /// `<element>` children added by this extension.
+    /// `<element>` children added by this extension, in document order.
     #[serde(rename = "element", default)]
     pub elements: Vec<Element>,
 

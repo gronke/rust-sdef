@@ -18,6 +18,7 @@ use crate::yorn::yorn;
 /// (camel-cased names, pluralised element keys, etc.). See `man sdef` for
 /// the full rules.
 #[derive(Debug, Clone, Default, Deserialize)]
+#[non_exhaustive]
 pub struct Cocoa {
     /// `name="…"` — legacy scriptSuite-compatibility attribute carried on
     /// suites, verbs, enumerations, and enumerators.
@@ -70,6 +71,7 @@ pub struct Cocoa {
 /// property/element) by matching the requesting app's identifier against
 /// `identifier`. The wildcard `"*"` matches any caller.
 #[derive(Debug, Clone, Default, Deserialize)]
+#[non_exhaustive]
 pub struct AccessGroup {
     /// `identifier="…"` — reverse-DNS-style sandbox identifier, or `"*"`
     /// for an unrestricted wildcard.
@@ -92,6 +94,7 @@ pub struct AccessGroup {
 /// required by the DTD; we treat both as optional here and let downstream
 /// validation enforce that.
 #[derive(Debug, Clone, Default, Deserialize)]
+#[non_exhaustive]
 pub struct Synonym {
     /// `name="…"` — alternate scripting term.
     #[serde(rename = "@name", default)]
@@ -123,6 +126,7 @@ pub struct Synonym {
 /// block holds one or more `<html>` snippets — escaped HTML text since
 /// OS X 10.5, raw text in earlier releases.
 #[derive(Debug, Clone, Default, Deserialize)]
+#[non_exhaustive]
 pub struct Documentation {
     /// `<html>` text snippets. Each entry is the inner text of one `<html>`
     /// element, in document order. quick-xml decodes XML entities here, so
@@ -138,6 +142,7 @@ pub struct Documentation {
 /// id. No semantic effect on scripting behaviour; consumed by dictionary
 /// browsers.
 #[derive(Debug, Clone, Default, Deserialize)]
+#[non_exhaustive]
 pub struct Xref {
     /// `target="…"` — name or id of the referenced element.
     #[serde(rename = "@target")]

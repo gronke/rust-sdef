@@ -15,6 +15,7 @@ use crate::yorn::yorn;
 /// A `<command>` — a verb the application supports via Apple Events,
 /// invoked from a script.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
 pub struct Command {
     /// Human-readable command name (`name="…"`), e.g. `"export transactions"`.
     #[serde(rename = "@name")]
@@ -63,7 +64,7 @@ pub struct Command {
 
     /// Optional `<result>` element describing the command's return value.
     #[serde(rename = "result", default)]
-    pub result: Option<Result_>,
+    pub result: Option<CommandResult>,
 
     /// Zero or more `<xref>` cross-reference children (since OS X 10.5).
     #[serde(rename = "xref", default)]
@@ -77,6 +78,7 @@ pub struct Command {
 /// `<access-group>` children: events are inbound notifications, so the
 /// caller-side entitlement model doesn't apply.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
 pub struct Event {
     /// Human-readable event name (`name="…"`).
     #[serde(rename = "@name")]
@@ -120,7 +122,7 @@ pub struct Event {
 
     /// Optional `<result>`.
     #[serde(rename = "result", default)]
-    pub result: Option<Result_>,
+    pub result: Option<CommandResult>,
 
     /// Zero or more `<xref>` cross-reference children.
     #[serde(rename = "xref", default)]
@@ -129,6 +131,7 @@ pub struct Event {
 
 /// A `<parameter>` of a `<command>` or `<event>`.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
 pub struct Parameter {
     /// Human-readable parameter name (`name="…"`), e.g. `"from date"`.
     #[serde(rename = "@name")]
@@ -182,6 +185,7 @@ pub struct Parameter {
 /// Carries the same attributes as a regular parameter except for `name` —
 /// direct parameters are positional in AppleScript syntax.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
 pub struct DirectParameter {
     /// Value type (`type="…"`).
     #[serde(rename = "@type", default)]
@@ -214,10 +218,11 @@ pub struct DirectParameter {
 
 /// A `<result>` element describing a command's return value.
 ///
-/// Named with a trailing underscore to avoid clashing with the prelude's
-/// `Result`.
+/// Named `CommandResult` to avoid clashing with the prelude's `Result` while
+/// staying readable in API surface (versus the earlier `Result_`).
 #[derive(Debug, Clone, Deserialize)]
-pub struct Result_ {
+#[non_exhaustive]
+pub struct CommandResult {
     /// Result value type (`type="…"`).
     #[serde(rename = "@type", default)]
     pub ty: Option<String>,

@@ -121,3 +121,103 @@ fn parses_access_groups() {
     let add = dict.command("add numbers").expect("command must exist");
     assert!(add.access_groups.is_empty());
 }
+
+#[test]
+fn parses_command_id_and_xref() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parses");
+
+    let echo = dict.command("echo text").expect("command must exist");
+    assert_eq!(echo.id.as_deref(), Some("echo-cmd"));
+    assert_eq!(echo.xrefs.len(), 1);
+    assert_eq!(echo.xrefs[0].target, "add-numbers");
+    assert!(!echo.xrefs[0].hidden);
+
+    let add = dict.command("add numbers").expect("command must exist");
+    assert_eq!(add.id.as_deref(), Some("add-numbers"));
+    assert!(add.xrefs.is_empty());
+}
+
+#[test]
+fn parses_synonym_on_command() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parses");
+
+    let echo = dict.command("echo text").expect("command must exist");
+    assert_eq!(echo.synonyms.len(), 1);
+    assert_eq!(echo.synonyms[0].name.as_deref(), Some("repeat text"));
+    assert!(echo.synonyms[0].code.is_none());
+    assert!(!echo.synonyms[0].hidden);
+}
+
+#[test]
+fn parses_documentation_blocks() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parses");
+
+    let suite = &dict.suites[0];
+    assert_eq!(suite.documentation.len(), 1);
+    assert_eq!(suite.documentation[0].html.len(), 1);
+    assert_eq!(
+        suite.documentation[0].html[0],
+        "Top-level documentation for the synthetic suite."
+    );
+
+    let echo = dict.command("echo text").expect("command must exist");
+    assert_eq!(echo.documentation.len(), 1);
+    assert_eq!(echo.documentation[0].html.len(), 2);
+    assert_eq!(
+        echo.documentation[0].html[0],
+        "Echoes the supplied text back to the caller."
+    );
+    assert_eq!(
+        echo.documentation[0].html[1],
+        "Optionally upper-cases the result."
+    );
+}
+
+#[test]
+fn parses_type_child_elements_with_list_and_union() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parses");
+
+    let add = dict.command("add numbers").expect("command must exist");
+
+    // The `and` parameter declares a union: <type>real</type> | <type list="yes">real</type>.
+    let and_param = add
+        .parameters
+        .iter()
+        .find(|p| p.name == "and")
+        .expect("`and` parameter must exist");
+    assert!(
+        and_param.ty.is_none(),
+        "type attribute and <type> children are mutually exclusive in this fixture"
+    );
+    assert_eq!(and_param.types.len(), 2);
+    assert_eq!(and_param.types[0].ty, "real");
+    assert!(!and_param.types[0].list);
+    assert_eq!(and_param.types[1].ty, "real");
+    assert!(and_param.types[1].list);
+
+    // The result uses a single <type> child instead of the attribute.
+    let result = add.result.as_ref().expect("result must exist");
+    assert!(result.ty.is_none());
+    assert_eq!(result.types.len(), 1);
+    assert_eq!(result.types[0].ty, "real");
+    assert!(!result.types[0].list);
+}
+
+#[test]
+fn parses_hidden_and_requires_access_flags() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parses");
+
+    let suite = &dict.suites[0];
+    assert!(!suite.hidden);
+
+    let echo = dict.command("echo text").expect("command must exist");
+    assert!(!echo.hidden);
+
+    let text_param = &echo.parameters[0];
+    assert_eq!(text_param.requires_access.as_deref(), Some("r"));
+    assert!(!text_param.hidden);
+
+    let upper_param = &echo.parameters[1];
+    assert!(!upper_param.hidden); // explicit hidden="no" in fixture
+    assert!(upper_param.requires_access.is_none());
+}

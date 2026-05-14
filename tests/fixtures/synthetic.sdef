@@ -1,21 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
 <dictionary title="Synthetic Test Suite">
-    <suite name="Synthetic Suite" code="SYNT" description="Hand-crafted suite used to exercise the parser.">
+    <suite name="Synthetic Suite" code="SYNT" description="Hand-crafted suite used to exercise the parser." hidden="no">
         <cocoa name="SyntheticSuite"/>
         <access-group identifier="com.example.synthetic.read" access="r"/>
-        <command name="echo text" code="SYNTecho" description="Returns the input text verbatim.">
+        <documentation>
+            <html>Top-level documentation for the synthetic suite.</html>
+        </documentation>
+
+        <command name="echo text" code="SYNTecho" id="echo-cmd" description="Returns the input text verbatim." hidden="no">
             <cocoa class="EchoHandler"/>
             <access-group identifier="com.example.synthetic.read"/>
-            <parameter name="text" code="text" type="text" description="The string to echo."/>
-            <parameter name="upper" code="uppr" type="boolean" optional="yes" description="If yes, upper-case the result."/>
+            <synonym name="repeat text"/>
+            <documentation>
+                <html>Echoes the supplied text back to the caller.</html>
+                <html>Optionally upper-cases the result.</html>
+            </documentation>
+            <parameter name="text" code="text" type="text" description="The string to echo." requires-access="r"/>
+            <parameter name="upper" code="uppr" type="boolean" optional="yes" hidden="no" description="If yes, upper-case the result."/>
             <result type="text" description="The echoed string."/>
+            <xref target="add-numbers"/>
         </command>
 
-        <command name="add numbers" code="SYNTaddn">
+        <command name="add numbers" code="SYNTaddn" id="add-numbers">
             <direct-parameter type="real" description="First operand."/>
-            <parameter name="and" code="andd" type="real" description="Second operand."/>
-            <result type="real"/>
+            <parameter name="and" code="andd" description="Second operand or list of operands.">
+                <type type="real"/>
+                <type type="real" list="yes"/>
+            </parameter>
+            <result>
+                <type type="real"/>
+            </result>
         </command>
     </suite>
 </dictionary>

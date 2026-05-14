@@ -46,8 +46,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: cargo-deps-${{ runner.os }}-
+          key: cargo-deps-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-deps-
 
       - name: Restore target/
         uses: actions/cache/restore@v5
@@ -68,7 +68,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          key: cargo-deps-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Save target/
         if: github.event_name == 'push'
@@ -92,8 +92,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: cargo-deps-${{ runner.os }}-
+          key: cargo-deps-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-deps-
 
       - name: Restore target/
         uses: actions/cache/restore@v5
@@ -120,7 +120,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          key: cargo-deps-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Save target/
         if: github.event_name == 'push'
@@ -144,8 +144,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: cargo-deps-${{ runner.os }}-
+          key: cargo-deps-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-deps-
 
       - name: Restore target/
         uses: actions/cache/restore@v5
@@ -168,7 +168,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          key: cargo-deps-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Save target/
         if: github.event_name == 'push'
@@ -192,8 +192,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: cargo-deps-${{ runner.os }}-
+          key: cargo-deps-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-deps-
 
       - name: Restore cargo-audit binary
         id: cargo-audit-cache
@@ -216,7 +216,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          key: cargo-deps-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Save cargo-audit binary
         if: github.event_name == 'push' && steps.cargo-audit-cache.outputs.cache-hit != 'true'

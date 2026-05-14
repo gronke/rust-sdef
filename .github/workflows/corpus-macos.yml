@@ -1,0 +1,94 @@
+name: Corpus (macOS)
+
+# Cross-checks the crate against Apple's own .sdef files where they live —
+# /System/Library/DTDs/sdef.dtd and /System/Library/ScriptingDefinitions/ —
+# without redistributing any copyrighted material. The runner image
+# ships those paths; we read them in place.
+#
+# Two independent checks:
+#   - tests/dtd_drift.rs: SHA-256 of the live system DTD must match the
+#     pinned digest in tests/fixtures/sdef.dtd.sha256, and `xmllint
+#     --dtdvalid` must accept every fixture under tests/fixtures/*.sdef.
+#   - tests/parses.rs::corpus_smoke (#[ignore]'d on every other CI run):
+#     parses every *.sdef under SDEF_FIXTURE_DIR with strict-mode and
+#     asserts each succeeds.
+#
+# Triggers: workflow_dispatch only. macOS minutes on GitHub-hosted runners
+# are ~10× the Linux rate, so we deliberately do NOT schedule this or run
+# it on every push. The lenient + DTD-drift coverage shipped in ci.yml
+# already runs on every PR (self-skipping the macOS-specific bits cleanly).
+# Run this manually when:
+#   - validating that DTD coverage still matches Apple's live schema
+#     (`gh workflow run corpus-macos.yml`),
+#   - investigating a `corpus_smoke` failure surfaced locally,
+#   - before tagging a release.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: corpus-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  corpus:
+    name: Corpus + drift (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/install-rust-toolchain
+
+      # Shared with ci.yml so an ubuntu fetch warms this macOS run and
+      # vice-versa. Registry contents are platform-independent (crates.io
+      # metadata + .crate downloads + git checkouts of git-deps).
+      - name: Restore cargo registry & git
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-deps-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-deps-
+
+      # target/ is genuinely platform-specific (compiled artifacts by
+      # target triple) so this key stays scoped by runner.os.
+      - name: Restore target/
+        uses: actions/cache/restore@v5
+        with:
+          path: target
+          key: cargo-target-${{ runner.os }}-corpus-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
+          restore-keys: |
+            cargo-target-${{ runner.os }}-corpus-${{ hashFiles('**/Cargo.lock') }}-
+            cargo-target-${{ runner.os }}-corpus-
+
+      - name: Confirm xmllint is on PATH
+        run: xmllint --version
+
+      - name: DTD drift + xmllint validation
+        run: cargo test --test dtd_drift -- --nocapture
+
+      - name: Strict-mode corpus against /System/Library/ScriptingDefinitions
+        env:
+          SDEF_FIXTURE_DIR: /System/Library/ScriptingDefinitions
+        run: cargo test corpus_smoke -- --ignored --nocapture
+
+      - name: Save cargo registry & git
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-deps-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Save target/
+        uses: actions/cache/save@v5
+        with:
+          path: target
+          key: cargo-target-${{ runner.os }}-corpus-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}

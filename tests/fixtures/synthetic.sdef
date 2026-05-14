@@ -55,5 +55,32 @@
             <cocoa class="NSColor"/>
             <synonym name="colour"/>
         </value-type>
+
+        <class name="shape" code="SYsh" plural="shapes" description="Base type for all 2D shapes.">
+            <cocoa class="SyntheticShape"/>
+            <property name="name" code="pnam" type="text" access="r" description="Identifier of the shape."/>
+        </class>
+
+        <class name="rectangle" code="SYrc" inherits="shape" plural="rectangles" description="A rectangle on the canvas.">
+            <cocoa class="SyntheticRectangle"/>
+            <type type="shape"/>
+            <property name="width" code="wdth" type="real" description="Width in points."/>
+            <property name="height" code="hght" type="real" description="Height in points.">
+                <cocoa key="heightInPoints"/>
+            </property>
+            <element type="point" access="r">
+                <cocoa key="anchorPoints"/>
+                <accessor style="index"/>
+                <accessor style="id"/>
+            </element>
+            <contents name="content" code="pcnt" type="text" description="Implied text contents."/>
+            <responds-to command="rotate">
+                <cocoa method="rotateBy:"/>
+            </responds-to>
+        </class>
+
+        <class-extension extends="rectangle" title="Annotations" description="Adds annotation support to rectangles." id="rect-annotations">
+            <property name="label" code="labl" type="text" description="A free-form label."/>
+        </class-extension>
     </suite>
 </dictionary>

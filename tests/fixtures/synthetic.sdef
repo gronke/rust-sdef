@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+<dictionary title="Synthetic Test Suite">
+    <suite name="Synthetic Suite" code="SYNT" description="Hand-crafted suite used to exercise the parser.">
+        <command name="echo text" code="SYNTecho" description="Returns the input text verbatim.">
+            <parameter name="text" code="text" type="text" description="The string to echo."/>
+            <parameter name="upper" code="uppr" type="boolean" optional="yes" description="If yes, upper-case the result."/>
+            <result type="text" description="The echoed string."/>
+        </command>
+
+        <command name="add numbers" code="SYNTaddn">
+            <direct-parameter type="real" description="First operand."/>
+            <parameter name="and" code="andd" type="real" description="Second operand."/>
+            <result type="real"/>
+        </command>
+    </suite>
+</dictionary>

@@ -36,11 +36,13 @@
 
 mod dictionary;
 mod error;
+mod metadata;
 mod parameter;
 mod yorn;
 
 pub use dictionary::{Command, Dictionary, Suite};
 pub use error::Error;
+pub use metadata::{AccessGroup, Cocoa};
 pub use parameter::{DirectParameter, Parameter, Result_};
 
 use std::io::Read;

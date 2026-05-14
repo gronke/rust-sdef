@@ -77,3 +77,47 @@ fn malformed_xml_surfaces_error() {
     // a stable contract.
     assert!(matches!(err, sdef::Error::Xml(_)));
 }
+
+#[test]
+fn parses_cocoa_on_suite_and_command() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parses");
+
+    let suite = &dict.suites[0];
+    let suite_cocoa = suite.cocoa.as_ref().expect("suite has <cocoa>");
+    assert_eq!(suite_cocoa.name.as_deref(), Some("SyntheticSuite"));
+    assert!(suite_cocoa.class.is_none());
+
+    let echo = dict.command("echo text").expect("command must exist");
+    let cmd_cocoa = echo.cocoa.as_ref().expect("command has <cocoa>");
+    assert_eq!(cmd_cocoa.class.as_deref(), Some("EchoHandler"));
+    assert!(cmd_cocoa.name.is_none());
+
+    // Commands without <cocoa> deserialise to None.
+    let add = dict.command("add numbers").expect("command must exist");
+    assert!(add.cocoa.is_none());
+}
+
+#[test]
+fn parses_access_groups() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parses");
+
+    let suite = &dict.suites[0];
+    assert_eq!(suite.access_groups.len(), 1);
+    assert_eq!(
+        suite.access_groups[0].identifier,
+        "com.example.synthetic.read"
+    );
+    assert_eq!(suite.access_groups[0].access.as_deref(), Some("r"));
+
+    let echo = dict.command("echo text").expect("command must exist");
+    assert_eq!(echo.access_groups.len(), 1);
+    assert_eq!(
+        echo.access_groups[0].identifier,
+        "com.example.synthetic.read"
+    );
+    assert!(echo.access_groups[0].access.is_none());
+
+    // Commands without <access-group> deserialise to an empty vec.
+    let add = dict.command("add numbers").expect("command must exist");
+    assert!(add.access_groups.is_empty());
+}

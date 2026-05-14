@@ -1,8 +1,10 @@
-//! Cross-cutting metadata elements: `<cocoa>`, `<access-group>`.
+//! Cross-cutting metadata elements: `<cocoa>`, `<access-group>`, `<synonym>`,
+//! `<documentation>` (and its `<html>` children), `<xref>`.
 //!
 //! These appear as optional children on many sdef elements (commands,
-//! suites, classes, properties, ...) and carry implementation details or
-//! sandbox entitlements rather than scripting terminology.
+//! suites, classes, properties, ...) and carry implementation details,
+//! sandbox entitlements, or human-readable annotations rather than
+//! scripting terminology.
 
 use serde::Deserialize;
 
@@ -80,4 +82,68 @@ pub struct AccessGroup {
     /// omitted (typical for `<access-group>` on `<command>` and `<suite>`).
     #[serde(rename = "@access", default)]
     pub access: Option<String>,
+}
+
+/// An alternate scripting term or code: the `<synonym>` element.
+///
+/// Most terminology elements may declare synonyms so AppleScript code can
+/// refer to them by a second name (or, less commonly, a second OSType code)
+/// without losing the canonical mapping. At least one of `name`/`code` is
+/// required by the DTD; we treat both as optional here and let downstream
+/// validation enforce that.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct Synonym {
+    /// `name="…"` — alternate scripting term.
+    #[serde(rename = "@name", default)]
+    pub name: Option<String>,
+
+    /// `code="…"` — alternate four-character OSType code.
+    #[serde(rename = "@code", default)]
+    pub code: Option<String>,
+
+    /// `hidden="yes|no"` — synonyms hidden from dictionary viewers; defaults
+    /// to `false`. Code-only synonyms are implicitly hidden per the DTD.
+    #[serde(rename = "@hidden", default, deserialize_with = "yorn")]
+    pub hidden: bool,
+
+    /// `plural="…"` — alternate plural form (class-style synonyms only).
+    #[serde(rename = "@plural", default)]
+    pub plural: Option<String>,
+
+    /// Optional `<cocoa>` implementation hint child (required by the DTD when
+    /// the synonym carries a code-only or name-and-code form).
+    #[serde(rename = "cocoa", default)]
+    pub cocoa: Option<Cocoa>,
+}
+
+/// Human-readable documentation block: the `<documentation>` element.
+///
+/// May appear on the dictionary, suites, any terminology element, and inside
+/// `<parameter>`/`<direct-parameter>`/`<result>` (since OS X 10.10). Each
+/// block holds one or more `<html>` snippets — escaped HTML text since
+/// OS X 10.5, raw text in earlier releases.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct Documentation {
+    /// `<html>` text snippets. Each entry is the inner text of one `<html>`
+    /// element, in document order. quick-xml decodes XML entities here, so
+    /// the strings are ready for display (or further HTML-escape decoding by
+    /// the caller for pre-10.5 dictionaries).
+    #[serde(rename = "html", default)]
+    pub html: Vec<String>,
+}
+
+/// Cross-reference: the `<xref>` element (added in OS X 10.5).
+///
+/// Documentation-only pointer to another scriptability element by name or
+/// id. No semantic effect on scripting behaviour; consumed by dictionary
+/// browsers.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct Xref {
+    /// `target="…"` — name or id of the referenced element.
+    #[serde(rename = "@target")]
+    pub target: String,
+
+    /// `hidden="yes|no"` — defaults to `false`.
+    #[serde(rename = "@hidden", default, deserialize_with = "yorn")]
+    pub hidden: bool,
 }

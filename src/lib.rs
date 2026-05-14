@@ -38,12 +38,14 @@ mod dictionary;
 mod error;
 mod metadata;
 mod parameter;
+mod typeref;
 mod yorn;
 
 pub use dictionary::{Command, Dictionary, Suite};
 pub use error::Error;
-pub use metadata::{AccessGroup, Cocoa};
+pub use metadata::{AccessGroup, Cocoa, Documentation, Synonym, Xref};
 pub use parameter::{DirectParameter, Parameter, Result_};
+pub use typeref::TypeRef;
 
 use std::io::Read;
 use std::path::Path;

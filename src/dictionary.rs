@@ -7,8 +7,9 @@
 
 use serde::Deserialize;
 
-use crate::metadata::{AccessGroup, Cocoa};
+use crate::metadata::{AccessGroup, Cocoa, Documentation, Synonym, Xref};
 use crate::parameter::{DirectParameter, Parameter, Result_};
+use crate::yorn::yorn;
 
 /// The root `<dictionary>` element of an sdef document.
 #[derive(Debug, Clone, Deserialize)]
@@ -40,6 +41,10 @@ pub struct Suite {
     #[serde(rename = "@description", default)]
     pub description: Option<String>,
 
+    /// `hidden="yes"` flag, defaults to `false`.
+    #[serde(rename = "@hidden", default, deserialize_with = "yorn")]
+    pub hidden: bool,
+
     /// Optional `<cocoa>` implementation hint child.
     #[serde(rename = "cocoa", default)]
     pub cocoa: Option<Cocoa>,
@@ -51,6 +56,12 @@ pub struct Suite {
     /// All `<command>` children of this suite.
     #[serde(rename = "command", default)]
     pub commands: Vec<Command>,
+
+    /// `<documentation>` child blocks. Per DTD, documentation can interleave
+    /// with class/command/etc. siblings inside a suite; we collect them all
+    /// here in document order.
+    #[serde(rename = "documentation", default)]
+    pub documentation: Vec<Documentation>,
     // TODO(specialist): also model <class>, <enumeration>, <record-type>,
     // <value-type>, <class-extension>, <event>.
 }
@@ -66,9 +77,18 @@ pub struct Command {
     #[serde(rename = "@code")]
     pub code: String,
 
+    /// `id="…"` — optional unique identifier for cross-references via
+    /// `<xref>` or `<responds-to>`.
+    #[serde(rename = "@id", default)]
+    pub id: Option<String>,
+
     /// Optional human description (`description="…"`).
     #[serde(rename = "@description", default)]
     pub description: Option<String>,
+
+    /// `hidden="yes"` flag, defaults to `false`.
+    #[serde(rename = "@hidden", default, deserialize_with = "yorn")]
+    pub hidden: bool,
 
     /// Optional `<cocoa>` implementation hint child.
     #[serde(rename = "cocoa", default)]
@@ -77,6 +97,14 @@ pub struct Command {
     /// Zero or more `<access-group>` entitlement children (since OS X 10.8).
     #[serde(rename = "access-group", default)]
     pub access_groups: Vec<AccessGroup>,
+
+    /// Zero or more `<synonym>` children — alternate names/codes.
+    #[serde(rename = "synonym", default)]
+    pub synonyms: Vec<Synonym>,
+
+    /// `<documentation>` child blocks.
+    #[serde(rename = "documentation", default)]
+    pub documentation: Vec<Documentation>,
 
     /// `<parameter>` children, in document order.
     #[serde(rename = "parameter", default)]
@@ -89,5 +117,8 @@ pub struct Command {
     /// Optional `<result>` element describing the command's return value.
     #[serde(rename = "result", default)]
     pub result: Option<Result_>,
-    // TODO(specialist): <synonym>, <documentation>.
+
+    /// Zero or more `<xref>` cross-reference children (since OS X 10.5).
+    #[serde(rename = "xref", default)]
+    pub xrefs: Vec<Xref>,
 }

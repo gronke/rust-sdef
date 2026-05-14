@@ -34,6 +34,7 @@
 
 #![warn(missing_docs)]
 
+mod class;
 mod command;
 mod decl;
 mod dictionary;
@@ -42,6 +43,7 @@ mod metadata;
 mod typeref;
 mod yorn;
 
+pub use class::{Accessor, Class, ClassExtension, Contents, Element, RespondsTo};
 pub use command::{Command, DirectParameter, Event, Parameter, Result_};
 pub use decl::{Enumeration, Enumerator, Property, RecordType, ValueType};
 pub use dictionary::{Dictionary, Suite};

@@ -221,3 +221,88 @@ fn parses_hidden_and_requires_access_flags() {
     assert!(!upper_param.hidden); // explicit hidden="no" in fixture
     assert!(upper_param.requires_access.is_none());
 }
+
+#[test]
+fn parses_event() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parses");
+
+    let suite = &dict.suites[0];
+    assert_eq!(suite.events.len(), 1);
+
+    let opened = &suite.events[0];
+    assert_eq!(opened.name, "opened");
+    assert_eq!(opened.code, "SYNTeopn");
+    assert_eq!(opened.id.as_deref(), Some("opened-event"));
+    assert_eq!(
+        opened.description.as_deref(),
+        Some("Fired when a synthetic document is opened.")
+    );
+    let cocoa = opened.cocoa.as_ref().expect("event has <cocoa>");
+    assert_eq!(cocoa.class.as_deref(), Some("OpenedEventHandler"));
+    assert_eq!(opened.parameters.len(), 1);
+    assert_eq!(opened.parameters[0].name, "reference");
+}
+
+#[test]
+fn parses_enumeration_with_enumerators() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parses");
+
+    let suite = &dict.suites[0];
+    assert_eq!(suite.enumerations.len(), 1);
+
+    let format = &suite.enumerations[0];
+    assert_eq!(format.name, "export format");
+    assert_eq!(format.code, "SYfm");
+    assert_eq!(format.inline.as_deref(), Some("2"));
+    assert_eq!(format.enumerators.len(), 3);
+
+    assert_eq!(format.enumerators[0].name, "csv");
+    assert_eq!(format.enumerators[0].code, "cmma");
+    assert!(!format.enumerators[0].hidden);
+
+    assert_eq!(format.enumerators[1].name, "json");
+    assert_eq!(format.enumerators[2].name, "xml");
+    assert!(format.enumerators[2].hidden); // hidden="yes" in fixture
+}
+
+#[test]
+fn parses_record_type_with_properties() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parses");
+
+    let suite = &dict.suites[0];
+    assert_eq!(suite.record_types.len(), 1);
+
+    let bbox = &suite.record_types[0];
+    assert_eq!(bbox.name, "bounding box");
+    assert_eq!(bbox.code, "SYbx");
+    assert_eq!(bbox.plural.as_deref(), Some("bounding boxes"));
+    assert_eq!(bbox.properties.len(), 4);
+
+    let left = &bbox.properties[0];
+    assert_eq!(left.name, "left");
+    assert_eq!(left.code, "left");
+    assert_eq!(left.ty.as_deref(), Some("real"));
+    assert!(left.access.is_none()); // attribute omitted → default "rw"
+    assert!(left.in_properties.is_none()); // omitted → DTD-default "yes"
+
+    let bottom = &bbox.properties[3];
+    assert_eq!(bottom.name, "bottom");
+    assert_eq!(bottom.access.as_deref(), Some("r"));
+    assert_eq!(bottom.in_properties, Some(false)); // explicit "no" in fixture
+}
+
+#[test]
+fn parses_value_type_with_synonym() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parses");
+
+    let suite = &dict.suites[0];
+    assert_eq!(suite.value_types.len(), 1);
+
+    let color = &suite.value_types[0];
+    assert_eq!(color.name, "color");
+    assert_eq!(color.code, "SYcl");
+    let cocoa = color.cocoa.as_ref().expect("value-type has <cocoa>");
+    assert_eq!(cocoa.class.as_deref(), Some("NSColor"));
+    assert_eq!(color.synonyms.len(), 1);
+    assert_eq!(color.synonyms[0].name.as_deref(), Some("colour"));
+}

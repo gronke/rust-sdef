@@ -1,0 +1,226 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/install-rust-toolchain
+        with:
+          components: rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/install-rust-toolchain
+        with:
+          components: clippy
+
+      - name: Restore cargo registry & git
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-deps-${{ runner.os }}-
+
+      - name: Restore target/
+        uses: actions/cache/restore@v5
+        with:
+          path: target
+          key: cargo-target-${{ runner.os }}-clippy-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
+          restore-keys: |
+            cargo-target-${{ runner.os }}-clippy-${{ hashFiles('**/Cargo.lock') }}-
+            cargo-target-${{ runner.os }}-clippy-
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Save cargo registry & git
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Save target/
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v5
+        with:
+          path: target
+          key: cargo-target-${{ runner.os }}-clippy-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/install-rust-toolchain
+
+      - name: Restore cargo registry & git
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-deps-${{ runner.os }}-
+
+      - name: Restore target/
+        uses: actions/cache/restore@v5
+        with:
+          path: target
+          key: cargo-target-${{ runner.os }}-test-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
+          restore-keys: |
+            cargo-target-${{ runner.os }}-test-${{ hashFiles('**/Cargo.lock') }}-
+            cargo-target-${{ runner.os }}-test-
+
+      - name: Run unit tests
+        run: cargo test --lib
+
+      - name: Run integration tests
+        run: cargo test --tests
+
+      - name: Run doc tests
+        run: cargo test --doc
+
+      - name: Save cargo registry & git
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Save target/
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v5
+        with:
+          path: target
+          key: cargo-target-${{ runner.os }}-test-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
+
+  doc:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/install-rust-toolchain
+
+      - name: Restore cargo registry & git
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-deps-${{ runner.os }}-
+
+      - name: Restore target/
+        uses: actions/cache/restore@v5
+        with:
+          path: target
+          key: cargo-target-${{ runner.os }}-doc-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
+          restore-keys: |
+            cargo-target-${{ runner.os }}-doc-${{ hashFiles('**/Cargo.lock') }}-
+            cargo-target-${{ runner.os }}-doc-
+
+      - name: Build documentation
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --no-deps --all-features
+
+      - name: Save cargo registry & git
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Save target/
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v5
+        with:
+          path: target
+          key: cargo-target-${{ runner.os }}-doc-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
+
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/install-rust-toolchain
+
+      - name: Restore cargo registry & git
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-deps-${{ runner.os }}-
+
+      - name: Restore cargo-audit binary
+        id: cargo-audit-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: cargo-audit-${{ runner.os }}
+
+      - name: Install cargo-audit
+        if: steps.cargo-audit-cache.outputs.cache-hit != 'true'
+        run: cargo install cargo-audit --locked
+
+      - name: Run cargo audit
+        run: cargo audit
+
+      - name: Save cargo registry & git
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-deps-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Save cargo-audit binary
+        if: github.event_name == 'push' && steps.cargo-audit-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: cargo-audit-${{ runner.os }}

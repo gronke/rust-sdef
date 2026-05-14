@@ -1,0 +1,22 @@
+[package]
+name = "sdef"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Typed parser for Apple .sdef (scripting definition) XML files."
+authors = ["Stefan Grönke <stefan@gronke.net>"]
+homepage = "https://github.com/gronke/rust-sdef"
+license = "MIT"
+keywords = ["applescript", "sdef", "macos", "parser", "xml"]
+categories = ["parser-implementations", "os::macos-apis"]
+# repository = "https://github.com/<owner>/rust-sdef"   # set when published
+readme = "README.md"
+
+[dependencies]
+quick-xml = { version = "0.39", features = ["serialize"] }
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+
+[dev-dependencies]
+# Add a real-world sdef fixture (sanitised, non-proprietary) under tests/fixtures
+# when integration coverage grows.

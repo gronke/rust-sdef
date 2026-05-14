@@ -16,6 +16,7 @@ use crate::yorn::yorn;
 /// A `<class>` declares a scriptable object type with properties, elements,
 /// and the verbs it responds to.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
 pub struct Class {
     /// Class name (`name="…"`).
     #[serde(rename = "@name")]
@@ -97,6 +98,7 @@ pub struct Class {
 /// A `<class-extension>` adds properties, elements, or `responds-to`
 /// declarations to a class declared elsewhere.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
 pub struct ClassExtension {
     /// `extends="…"` — name of the class being extended (required).
     #[serde(rename = "@extends")]
@@ -161,6 +163,7 @@ pub struct ClassExtension {
 /// of text of document 1`. Most attributes are optional and default per the
 /// man page: `name="contents"`, `code="pcnt"`.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
 pub struct Contents {
     /// `name="…"` — defaults to `"contents"` per the man page.
     #[serde(rename = "@name", default)]
@@ -215,6 +218,7 @@ pub struct Contents {
 /// An `<element>` — a to-many relationship from a class to instances of
 /// another class.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
 pub struct Element {
     /// `type="…"` — class name of the contained objects (required).
     #[serde(rename = "@type")]
@@ -254,6 +258,7 @@ pub struct Element {
 /// Used by aete-based dictionaries; Cocoa Scripting derives access styles
 /// from properties and largely ignores explicit `<accessor>` declarations.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
 pub struct Accessor {
     /// `style="…"` — one of `index`, `name`, `id`, `range`, `relative`,
     /// `test`. Kept as a raw `String`; the parser does not enforce the
@@ -265,6 +270,7 @@ pub struct Accessor {
 /// A `<responds-to>` declaration mapping a verb to a class's
 /// implementation.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
 pub struct RespondsTo {
     /// `command="…"` — the verb name or id this class handles.
     ///

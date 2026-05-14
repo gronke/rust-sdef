@@ -11,6 +11,18 @@
 //! `/System/Library/DTDs/sdef.dtd`; this crate's AST mirrors the subset of
 //! elements currently modelled. See the [README] for scope and roadmap.
 //!
+//! # Lenient vs strict parsing
+//!
+//! [`Dictionary::from_str`] (and its `from_reader`/`from_path` siblings)
+//! tolerates unknown XML elements: anything outside the modelled DTD subset
+//! is silently dropped, which matches quick-xml's default serde behaviour.
+//! Use this for forward compatibility against future Apple additions.
+//!
+//! [`Dictionary::from_str_strict`] (and friends) runs a pre-pass that
+//! rejects any element name this crate does not model and any
+//! `<xi:include>` directive. Use it when you want loud failures on DTD
+//! drift — for tests, CI gates, or before pinning a fixture for review.
+//!
 //! # Example
 //!
 //! ```no_run
@@ -40,11 +52,12 @@ mod decl;
 mod dictionary;
 mod error;
 mod metadata;
+mod strict;
 mod typeref;
 mod yorn;
 
 pub use class::{Accessor, Class, ClassExtension, Contents, Element, RespondsTo};
-pub use command::{Command, DirectParameter, Event, Parameter, Result_};
+pub use command::{Command, CommandResult, DirectParameter, Event, Parameter};
 pub use decl::{Enumeration, Enumerator, Property, RecordType, ValueType};
 pub use dictionary::{Dictionary, Suite};
 pub use error::Error;
@@ -74,6 +87,31 @@ impl Dictionary {
     /// Parse an sdef document from a filesystem path.
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         std::fs::read_to_string(path)?.parse()
+    }
+
+    /// Parse an sdef document and reject anything outside the modelled DTD
+    /// subset. See the [crate-level docs] for the lenient/strict contrast.
+    ///
+    /// Returns [`Error::UnknownElement`] for unmodelled element names and
+    /// [`Error::XIncludeUnsupported`] for `<xi:include>` directives.
+    ///
+    /// [crate-level docs]: crate
+    pub fn from_str_strict(xml: &str) -> Result<Self, Error> {
+        strict::validate_strict(xml)?;
+        xml.parse()
+    }
+
+    /// Strict-mode counterpart to [`Self::from_reader`].
+    pub fn from_reader_strict<R: Read>(mut reader: R) -> Result<Self, Error> {
+        let mut buf = String::new();
+        reader.read_to_string(&mut buf)?;
+        Self::from_str_strict(&buf)
+    }
+
+    /// Strict-mode counterpart to [`Self::from_path`].
+    pub fn from_path_strict<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        let xml = std::fs::read_to_string(path)?;
+        Self::from_str_strict(&xml)
     }
 
     /// Find a command by its human-readable `name` attribute, searching all

@@ -13,10 +13,12 @@ categories = ["parser-implementations", "os::macos-apis"]
 readme = "README.md"
 
 [dependencies]
-quick-xml = { version = "0.40", features = ["serialize"] }
+quick-xml = { version = "0.40", features = ["serialize", "overlapped-lists"] }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 
 [dev-dependencies]
-# Add a real-world sdef fixture (sanitised, non-proprietary) under tests/fixtures
-# when integration coverage grows.
+# Pure-Rust SHA-256, used by the dtd_drift integration test to compare the
+# live `/System/Library/DTDs/sdef.dtd` against the pinned digest in
+# `tests/fixtures/sdef.dtd.sha256`.
+sha2 = "0.10"

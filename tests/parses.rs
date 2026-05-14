@@ -553,3 +553,278 @@ fn command_result_rename_is_publicly_exposed() {
     let result: &sdef::CommandResult = echo.result.as_ref().expect("echo has a result");
     assert_eq!(result.ty.as_deref(), Some("text"));
 }
+
+// ===== Fixture-coverage regression tests =====
+
+#[test]
+fn parses_mini_fixture_with_minimum_valid_content() {
+    // The minimum-valid sdef — one suite, one command, no optional attrs.
+    // Catches regressions where a refactor accidentally requires more.
+    let dict = Dictionary::from_path_strict(fixture("mini.sdef")).expect("parses");
+
+    assert!(dict.title.is_none());
+    assert_eq!(dict.suites.len(), 1);
+    let suite = &dict.suites[0];
+    assert_eq!(suite.name, "Mini");
+    assert_eq!(suite.code, "MINI");
+    assert!(suite.description.is_none());
+    assert!(!suite.hidden);
+    assert!(suite.cocoa.is_none());
+    assert!(suite.access_groups.is_empty());
+    assert!(suite.documentation.is_empty());
+    assert!(suite.events.is_empty());
+    assert!(suite.classes.is_empty());
+
+    assert_eq!(suite.commands.len(), 1);
+    let cmd = &suite.commands[0];
+    assert_eq!(cmd.name, "ping");
+    assert_eq!(cmd.code, "MINIping");
+    assert!(cmd.id.is_none());
+    assert!(cmd.description.is_none());
+    assert!(!cmd.hidden);
+    assert!(cmd.cocoa.is_none());
+    assert!(cmd.access_groups.is_empty());
+    assert!(cmd.synonyms.is_empty());
+    assert!(cmd.documentation.is_empty());
+    assert!(cmd.parameters.is_empty());
+    assert!(cmd.direct_parameter.is_none());
+    assert!(cmd.result.is_none());
+    assert!(cmd.xrefs.is_empty());
+}
+
+#[test]
+fn parses_extras_multiple_synonyms_and_inline_parameter_doc() {
+    let dict = Dictionary::from_path_strict(fixture("extras.sdef")).expect("parses");
+    let multi = dict.command("multi").expect("multi command exists");
+
+    // Multiple <synonym> siblings on one command.
+    assert_eq!(multi.synonyms.len(), 2);
+    assert_eq!(multi.synonyms[0].name.as_deref(), Some("multiple"));
+    assert!(multi.synonyms[0].code.is_none());
+    assert_eq!(multi.synonyms[1].name.as_deref(), Some("many"));
+    assert_eq!(multi.synonyms[1].code.as_deref(), Some("MULT"));
+
+    // <documentation> inside <parameter> — a 10.10 placement that wasn't
+    // exercised in synthetic.sdef.
+    let value = multi
+        .parameters
+        .iter()
+        .find(|p| p.name == "value")
+        .expect("`value` parameter exists");
+    assert_eq!(value.documentation.len(), 1);
+    assert_eq!(value.documentation[0].html.len(), 1);
+    assert_eq!(
+        value.documentation[0].html[0],
+        "Description embedded inside the parameter (since OS X 10.10)."
+    );
+    // Type child still parses alongside the documentation child.
+    assert_eq!(value.types.len(), 1);
+    assert_eq!(value.types[0].ty, "text");
+}
+
+#[test]
+fn parses_extras_union_result_type() {
+    // Result with three sibling <type> children (union expression).
+    let dict = Dictionary::from_path_strict(fixture("extras.sdef")).expect("parses");
+    let multi = dict.command("multi").expect("multi command exists");
+    let result = multi.result.as_ref().expect("multi has a result");
+
+    assert!(
+        result.ty.is_none(),
+        "union form is mutually exclusive with type attribute"
+    );
+    assert_eq!(result.types.len(), 3);
+    assert_eq!(result.types[0].ty, "integer");
+    assert_eq!(result.types[1].ty, "real");
+    assert_eq!(result.types[2].ty, "boolean");
+    for t in &result.types {
+        assert!(!t.list, "no union member is marked list in this fixture");
+    }
+}
+
+#[test]
+fn parses_extras_enumerator_with_cocoa_string_value() {
+    let dict = Dictionary::from_path_strict(fixture("extras.sdef")).expect("parses");
+    let severity = dict
+        .suites
+        .iter()
+        .flat_map(|s| &s.enumerations)
+        .find(|e| e.name == "severity")
+        .expect("severity enumeration exists");
+
+    assert_eq!(severity.enumerators.len(), 3);
+    let info = &severity.enumerators[0];
+    assert_eq!(info.name, "info");
+    let cocoa = info.cocoa.as_ref().expect("enumerator has <cocoa>");
+    assert_eq!(cocoa.string_value.as_deref(), Some("info-level"));
+    assert!(cocoa.class.is_none());
+    assert!(cocoa.integer_value.is_none());
+    assert!(cocoa.boolean_value.is_none());
+}
+
+#[test]
+fn parses_extras_class_with_interleaved_children() {
+    // The fixture's <class name="entry"> is intentionally
+    // property → element → property → responds-to, not contiguous-by-type.
+    // Guards against regressions in interleaved-children handling.
+    let dict = Dictionary::from_path_strict(fixture("extras.sdef")).expect("parses");
+    let entry = dict
+        .suites
+        .iter()
+        .flat_map(|s| &s.classes)
+        .find(|c| c.name == "entry")
+        .expect("entry class exists");
+
+    assert_eq!(
+        entry.properties.len(),
+        2,
+        "both properties survive interleaving"
+    );
+    let prop_names: Vec<&str> = entry.properties.iter().map(|p| p.name.as_str()).collect();
+    assert_eq!(prop_names, ["severity", "message"]);
+
+    assert_eq!(entry.elements.len(), 1, "the element survives interleaving");
+    assert_eq!(entry.elements[0].ty, "entry");
+    assert_eq!(
+        entry.responds_to.len(),
+        1,
+        "the responds-to survives interleaving"
+    );
+}
+
+#[test]
+fn suite_with_interleaved_commands_and_enumerations_parses() {
+    // Mirror-image of the class-level interleaving test, at suite scope.
+    // Apple's own CocoaStandard.sdef alternates commands and enumerations,
+    // which is what surfaced the underlying quick-xml limitation.
+    let xml = r#"<?xml version="1.0"?>
+<dictionary>
+    <suite name="X" code="SUIT">
+        <command name="c1" code="SUITcmd1"/>
+        <enumeration name="e1" code="enm1">
+            <enumerator name="a" code="aaaa"/>
+        </enumeration>
+        <command name="c2" code="SUITcmd2"/>
+        <enumeration name="e2" code="enm2">
+            <enumerator name="b" code="bbbb"/>
+        </enumeration>
+        <command name="c3" code="SUITcmd3"/>
+    </suite>
+</dictionary>"#;
+    let dict: Dictionary = xml.parse().expect("interleaved suite parses");
+    let suite = &dict.suites[0];
+
+    assert_eq!(
+        suite.commands.len(),
+        3,
+        "all three commands survive interleaving"
+    );
+    let cmd_names: Vec<&str> = suite.commands.iter().map(|c| c.name.as_str()).collect();
+    assert_eq!(cmd_names, ["c1", "c2", "c3"]);
+
+    assert_eq!(
+        suite.enumerations.len(),
+        2,
+        "both enumerations survive interleaving"
+    );
+    let enum_names: Vec<&str> = suite.enumerations.iter().map(|e| e.name.as_str()).collect();
+    assert_eq!(enum_names, ["e1", "e2"]);
+}
+
+#[test]
+fn parses_extras_property_access_group_and_legacy_responds_to_name() {
+    let dict = Dictionary::from_path_strict(fixture("extras.sdef")).expect("parses");
+    let entry = dict
+        .suites
+        .iter()
+        .flat_map(|s| &s.classes)
+        .find(|c| c.name == "entry")
+        .expect("entry class exists");
+
+    // <access-group> nested inside a <property> (placement not exercised
+    // in synthetic.sdef — synthetic only puts access-groups at the
+    // suite/command level).
+    let severity = entry
+        .properties
+        .iter()
+        .find(|p| p.name == "severity")
+        .expect("severity property exists");
+    assert_eq!(severity.access_groups.len(), 1);
+    assert_eq!(
+        severity.access_groups[0].identifier,
+        "com.example.edge.read"
+    );
+    assert_eq!(severity.access_groups[0].access.as_deref(), Some("r"));
+
+    // <element> with four accessor styles (exercises the accessor vector,
+    // not just one entry as synthetic.sdef does).
+    assert_eq!(entry.elements.len(), 1);
+    let elem = &entry.elements[0];
+    assert_eq!(elem.accessors.len(), 4);
+    let styles: Vec<&str> = elem.accessors.iter().map(|a| a.style.as_str()).collect();
+    assert_eq!(styles, ["index", "name", "id", "range"]);
+
+    // <responds-to> with both new `command` and legacy `name` attributes
+    // present — confirms the backward-compat field deserializes.
+    assert_eq!(entry.responds_to.len(), 1);
+    let rto = &entry.responds_to[0];
+    assert_eq!(rto.command.as_deref(), Some("rotate"));
+    assert_eq!(rto.name.as_deref(), Some("rotate"));
+    let cocoa = rto.cocoa.as_ref().expect("responds-to carries <cocoa>");
+    assert_eq!(cocoa.method.as_deref(), Some("rotateLog:"));
+}
+
+// ===== Opt-in real-world corpus probe =====
+//
+// Run with: SDEF_FIXTURE_DIR=/Applications/MoneyMoney.app/Contents/Resources \
+//           cargo test corpus_smoke -- --ignored --nocapture
+//
+// Iterates every *.sdef under the given directory and asserts they all
+// parse cleanly under strict mode. Useful for ad-hoc validation against a
+// developer's local system sdefs without committing licensed Apple content.
+
+#[test]
+#[ignore = "opt-in: requires SDEF_FIXTURE_DIR env var"]
+fn corpus_smoke() {
+    let dir = match std::env::var("SDEF_FIXTURE_DIR") {
+        Ok(d) => PathBuf::from(d),
+        Err(_) => {
+            eprintln!(
+                "SDEF_FIXTURE_DIR not set — this test is opt-in. \
+                 Try: SDEF_FIXTURE_DIR=/System/Library/ScriptingDefinitions \
+                 cargo test corpus_smoke -- --ignored --nocapture"
+            );
+            return;
+        }
+    };
+
+    let entries = std::fs::read_dir(&dir)
+        .unwrap_or_else(|e| panic!("read SDEF_FIXTURE_DIR={}: {e}", dir.display()));
+
+    let mut count = 0usize;
+    let mut failures: Vec<String> = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().is_some_and(|e| e == "sdef") {
+            count += 1;
+            if let Err(e) = Dictionary::from_path_strict(&path) {
+                failures.push(format!("{}: {e}", path.display()));
+            }
+        }
+    }
+
+    eprintln!(
+        "corpus_smoke: checked {count} sdef file(s) under {}",
+        dir.display()
+    );
+    if !failures.is_empty() {
+        for f in &failures {
+            eprintln!("  FAIL: {f}");
+        }
+        panic!(
+            "{} of {} sdef file(s) in corpus failed strict parsing",
+            failures.len(),
+            count
+        );
+    }
+}

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+<dictionary title="Edge Case Fixture">
+    <suite name="Edge Suite" code="EDGE" description="Edge cases that synthetic.sdef does not exercise.">
+        <command name="multi" code="EDGEmult" description="Command exercising annotation children and a union result.">
+            <cocoa class="MultiHandler"/>
+            <synonym name="multiple"/>
+            <synonym name="many" code="MULT"/>
+            <parameter name="value" code="valu" description="Inline-documented parameter.">
+                <type type="text"/>
+                <documentation>
+                    <html>Description embedded inside the parameter (since OS X 10.10).</html>
+                </documentation>
+            </parameter>
+            <result description="A union return type.">
+                <type type="integer"/>
+                <type type="real"/>
+                <type type="boolean"/>
+            </result>
+        </command>
+
+        <enumeration name="severity" code="sevr" description="Log severity levels.">
+            <enumerator name="info" code="info" description="Informational.">
+                <cocoa string-value="info-level"/>
+            </enumerator>
+            <enumerator name="warn" code="warn" description="Warning.">
+                <cocoa string-value="warning-level"/>
+            </enumerator>
+            <enumerator name="error" code="errr" description="Error.">
+                <cocoa string-value="error-level"/>
+            </enumerator>
+        </enumeration>
+
+        <!-- Intentionally interleaves property/element/property/responds-to.
+             quick-xml's serde adapter fails on this without the
+             RawClass+ClassChild deserialization indirection in src/class.rs;
+             the parses_extras_class_with_interleaved_children test
+             below exists to catch any regression there. -->
+        <class name="entry" code="entr" description="A log entry.">
+            <property name="severity" code="sevr" type="severity" access="r" description="Severity level.">
+                <access-group identifier="com.example.edge.read" access="r"/>
+            </property>
+            <element type="entry" access="r">
+                <accessor style="index"/>
+                <accessor style="name"/>
+                <accessor style="id"/>
+                <accessor style="range"/>
+            </element>
+            <property name="message" code="mesg" type="text" description="The log message body."/>
+            <responds-to command="rotate" name="rotate">
+                <cocoa method="rotateLog:"/>
+            </responds-to>
+        </class>
+    </suite>
+</dictionary>

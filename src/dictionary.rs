@@ -32,6 +32,13 @@ pub struct Dictionary {
 
 /// A `<suite>` groups related commands, events, classes, enumerations,
 /// record-types, and value-types.
+///
+/// The DTD's `(class | command | enumeration | event | record-type |
+/// value-type | documentation)+` content model permits child elements to
+/// appear in any order, and Apple's own system sdefs interleave them
+/// (e.g. `CocoaStandard.sdef` alternates commands and enumerations). We
+/// rely on quick-xml's `overlapped-lists` cargo feature to deserialize
+/// each child directly into its typed `Vec` field regardless of order.
 #[derive(Debug, Clone, Deserialize)]
 #[non_exhaustive]
 pub struct Suite {
@@ -59,37 +66,36 @@ pub struct Suite {
     #[serde(rename = "access-group", default)]
     pub access_groups: Vec<AccessGroup>,
 
-    /// All `<command>` children of this suite.
+    /// All `<command>` children of this suite, in document order.
     #[serde(rename = "command", default)]
     pub commands: Vec<Command>,
 
-    /// All `<event>` children of this suite.
+    /// All `<event>` children of this suite, in document order.
     #[serde(rename = "event", default)]
     pub events: Vec<Event>,
 
-    /// All `<class>` children of this suite.
+    /// All `<class>` children of this suite, in document order.
     #[serde(rename = "class", default)]
     pub classes: Vec<Class>,
 
-    /// All `<class-extension>` children of this suite.
+    /// All `<class-extension>` children of this suite, in document order.
     #[serde(rename = "class-extension", default)]
     pub class_extensions: Vec<ClassExtension>,
 
-    /// All `<enumeration>` children of this suite.
+    /// All `<enumeration>` children of this suite, in document order.
     #[serde(rename = "enumeration", default)]
     pub enumerations: Vec<Enumeration>,
 
-    /// All `<record-type>` children of this suite.
+    /// All `<record-type>` children of this suite, in document order.
     #[serde(rename = "record-type", default)]
     pub record_types: Vec<RecordType>,
 
-    /// All `<value-type>` children of this suite.
+    /// All `<value-type>` children of this suite, in document order.
     #[serde(rename = "value-type", default)]
     pub value_types: Vec<ValueType>,
 
-    /// `<documentation>` child blocks. Per DTD, documentation can interleave
-    /// with other declarations inside a suite; we collect them all here in
-    /// document order.
+    /// `<documentation>` child blocks, in document order. Per DTD,
+    /// documentation can interleave with other declarations inside a suite.
     #[serde(rename = "documentation", default)]
     pub documentation: Vec<Documentation>,
 }

@@ -2,7 +2,11 @@
 <!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
 <dictionary title="Synthetic Test Suite">
     <suite name="Synthetic Suite" code="SYNT" description="Hand-crafted suite used to exercise the parser.">
+        <cocoa name="SyntheticSuite"/>
+        <access-group identifier="com.example.synthetic.read" access="r"/>
         <command name="echo text" code="SYNTecho" description="Returns the input text verbatim.">
+            <cocoa class="EchoHandler"/>
+            <access-group identifier="com.example.synthetic.read"/>
             <parameter name="text" code="text" type="text" description="The string to echo."/>
             <parameter name="upper" code="uppr" type="boolean" optional="yes" description="If yes, upper-case the result."/>
             <result type="text" description="The echoed string."/>

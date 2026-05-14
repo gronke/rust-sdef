@@ -8,6 +8,7 @@
 
 use serde::Deserialize;
 
+use crate::class::{Class, ClassExtension};
 use crate::command::{Command, Event};
 use crate::decl::{Enumeration, RecordType, ValueType};
 use crate::metadata::{AccessGroup, Cocoa, Documentation};
@@ -64,6 +65,14 @@ pub struct Suite {
     #[serde(rename = "event", default)]
     pub events: Vec<Event>,
 
+    /// All `<class>` children of this suite.
+    #[serde(rename = "class", default)]
+    pub classes: Vec<Class>,
+
+    /// All `<class-extension>` children of this suite.
+    #[serde(rename = "class-extension", default)]
+    pub class_extensions: Vec<ClassExtension>,
+
     /// All `<enumeration>` children of this suite.
     #[serde(rename = "enumeration", default)]
     pub enumerations: Vec<Enumeration>,
@@ -81,5 +90,4 @@ pub struct Suite {
     /// document order.
     #[serde(rename = "documentation", default)]
     pub documentation: Vec<Documentation>,
-    // TODO(specialist): <class>, <class-extension> in the next commit.
 }

@@ -306,3 +306,87 @@ fn parses_value_type_with_synonym() {
     assert_eq!(color.synonyms.len(), 1);
     assert_eq!(color.synonyms[0].name.as_deref(), Some("colour"));
 }
+
+#[test]
+fn parses_classes_with_inheritance() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parses");
+
+    let suite = &dict.suites[0];
+    assert_eq!(suite.classes.len(), 2);
+
+    let shape = &suite.classes[0];
+    assert_eq!(shape.name, "shape");
+    assert_eq!(shape.code, "SYsh");
+    assert_eq!(shape.plural.as_deref(), Some("shapes"));
+    assert!(shape.inherits.is_none());
+    let cocoa = shape.cocoa.as_ref().expect("shape has <cocoa>");
+    assert_eq!(cocoa.class.as_deref(), Some("SyntheticShape"));
+    assert_eq!(shape.properties.len(), 1);
+    assert_eq!(shape.properties[0].name, "name");
+    assert_eq!(shape.properties[0].access.as_deref(), Some("r"));
+
+    let rect = &suite.classes[1];
+    assert_eq!(rect.name, "rectangle");
+    assert_eq!(rect.inherits.as_deref(), Some("shape"));
+    assert_eq!(rect.types.len(), 1);
+    assert_eq!(rect.types[0].ty, "shape");
+    assert_eq!(rect.properties.len(), 2);
+    // Property with nested <cocoa key="...">
+    let height = &rect.properties[1];
+    assert_eq!(height.name, "height");
+    let height_cocoa = height.cocoa.as_ref().expect("height has <cocoa>");
+    assert_eq!(height_cocoa.key.as_deref(), Some("heightInPoints"));
+}
+
+#[test]
+fn parses_element_with_accessors() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parses");
+
+    let rect = &dict.suites[0].classes[1];
+    assert_eq!(rect.elements.len(), 1);
+
+    let elem = &rect.elements[0];
+    assert_eq!(elem.ty, "point");
+    assert_eq!(elem.access.as_deref(), Some("r"));
+    let cocoa = elem.cocoa.as_ref().expect("element has <cocoa>");
+    assert_eq!(cocoa.key.as_deref(), Some("anchorPoints"));
+
+    assert_eq!(elem.accessors.len(), 2);
+    assert_eq!(elem.accessors[0].style, "index");
+    assert_eq!(elem.accessors[1].style, "id");
+}
+
+#[test]
+fn parses_contents_and_responds_to() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parses");
+
+    let rect = &dict.suites[0].classes[1];
+
+    assert_eq!(rect.contents.len(), 1);
+    let contents = &rect.contents[0];
+    assert_eq!(contents.name.as_deref(), Some("content"));
+    assert_eq!(contents.code.as_deref(), Some("pcnt"));
+    assert_eq!(contents.ty.as_deref(), Some("text"));
+
+    assert_eq!(rect.responds_to.len(), 1);
+    let rto = &rect.responds_to[0];
+    assert_eq!(rto.command.as_deref(), Some("rotate"));
+    assert!(rto.name.is_none());
+    let cocoa = rto.cocoa.as_ref().expect("responds-to has <cocoa>");
+    assert_eq!(cocoa.method.as_deref(), Some("rotateBy:"));
+}
+
+#[test]
+fn parses_class_extension() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parses");
+
+    let suite = &dict.suites[0];
+    assert_eq!(suite.class_extensions.len(), 1);
+
+    let ext = &suite.class_extensions[0];
+    assert_eq!(ext.extends, "rectangle");
+    assert_eq!(ext.title.as_deref(), Some("Annotations"));
+    assert_eq!(ext.id.as_deref(), Some("rect-annotations"));
+    assert_eq!(ext.properties.len(), 1);
+    assert_eq!(ext.properties[0].name, "label");
+}

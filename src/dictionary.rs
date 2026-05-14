@@ -7,6 +7,7 @@
 
 use serde::Deserialize;
 
+use crate::metadata::{AccessGroup, Cocoa};
 use crate::parameter::{DirectParameter, Parameter, Result_};
 
 /// The root `<dictionary>` element of an sdef document.
@@ -39,6 +40,14 @@ pub struct Suite {
     #[serde(rename = "@description", default)]
     pub description: Option<String>,
 
+    /// Optional `<cocoa>` implementation hint child.
+    #[serde(rename = "cocoa", default)]
+    pub cocoa: Option<Cocoa>,
+
+    /// Zero or more `<access-group>` entitlement children (since OS X 10.8).
+    #[serde(rename = "access-group", default)]
+    pub access_groups: Vec<AccessGroup>,
+
     /// All `<command>` children of this suite.
     #[serde(rename = "command", default)]
     pub commands: Vec<Command>,
@@ -61,6 +70,14 @@ pub struct Command {
     #[serde(rename = "@description", default)]
     pub description: Option<String>,
 
+    /// Optional `<cocoa>` implementation hint child.
+    #[serde(rename = "cocoa", default)]
+    pub cocoa: Option<Cocoa>,
+
+    /// Zero or more `<access-group>` entitlement children (since OS X 10.8).
+    #[serde(rename = "access-group", default)]
+    pub access_groups: Vec<AccessGroup>,
+
     /// `<parameter>` children, in document order.
     #[serde(rename = "parameter", default)]
     pub parameters: Vec<Parameter>,
@@ -72,5 +89,5 @@ pub struct Command {
     /// Optional `<result>` element describing the command's return value.
     #[serde(rename = "result", default)]
     pub result: Option<Result_>,
-    // TODO(specialist): <cocoa class="…"/>, <synonym>, <documentation>.
+    // TODO(specialist): <synonym>, <documentation>.
 }

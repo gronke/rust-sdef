@@ -7,9 +7,9 @@
 //! actual interface, generating documentation, or building richer
 //! AppleScript-driven tools.
 //!
-//! The authoritative schema is shipped with macOS at
-//! `/System/Library/DTDs/sdef.dtd`; this crate's AST mirrors the subset of
-//! elements currently modelled. See the [README] for scope and roadmap.
+//! The AST covers every element defined in `/System/Library/DTDs/sdef.dtd`
+//! as of macOS 26.x. See the [README] for the per-OS-release change history
+//! the AST is annotated against.
 //!
 //! # Lenient vs strict parsing
 //!
@@ -41,8 +41,28 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
+//! Strict mode surfaces DTD drift via typed error variants:
+//!
+//! ```
+//! use sdef::{Dictionary, Error};
+//!
+//! let xml = r#"<?xml version="1.0"?>
+//! <dictionary>
+//!     <suite name="X" code="SUIT">
+//!         <command name="c" code="SUITcmd1">
+//!             <vendor-extension/>
+//!         </command>
+//!     </suite>
+//! </dictionary>"#;
+//!
+//! match Dictionary::from_str_strict(xml) {
+//!     Err(Error::UnknownElement { name }) => assert_eq!(name, "vendor-extension"),
+//!     other => panic!("expected UnknownElement, got {other:?}"),
+//! }
+//! ```
+//!
 //! [sdef-man]: https://keith.github.io/xcode-man-pages/sdef.5.html
-//! [README]: https://github.com/<owner>/rust-sdef#readme
+//! [README]: https://github.com/gronke/rust-sdef#readme
 
 #![warn(missing_docs)]
 

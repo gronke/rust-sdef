@@ -211,7 +211,8 @@ pub struct DirectParameter {
     #[serde(rename = "type", default)]
     pub types: Vec<TypeRef>,
 
-    /// `<documentation>` child blocks.
+    /// `<documentation>` child blocks (since OS X 10.10 may appear inline
+    /// inside a direct-parameter).
     #[serde(rename = "documentation", default)]
     pub documentation: Vec<Documentation>,
 }
@@ -235,7 +236,8 @@ pub struct CommandResult {
     #[serde(rename = "type", default)]
     pub types: Vec<TypeRef>,
 
-    /// `<documentation>` child blocks.
+    /// `<documentation>` child blocks (since OS X 10.10 may appear inline
+    /// inside a result).
     #[serde(rename = "documentation", default)]
     pub documentation: Vec<Documentation>,
 }

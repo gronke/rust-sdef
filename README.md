@@ -1,5 +1,8 @@
 # sdef
 
+[![CI](https://github.com/gronke/rust-sdef/actions/workflows/ci.yml/badge.svg)](https://github.com/gronke/rust-sdef/actions/workflows/ci.yml)
+[![Corpus (macOS)](https://github.com/gronke/rust-sdef/actions/workflows/corpus-macos.yml/badge.svg)](https://github.com/gronke/rust-sdef/actions/workflows/corpus-macos.yml)
+
 Typed parser for Apple [scripting definition][sdef-man] (`.sdef`) XML files in Rust.
 
 `.sdef` files are the modern, machine-readable terminology format that

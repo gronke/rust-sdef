@@ -10,6 +10,10 @@
 use std::path::PathBuf;
 
 use sdef::Dictionary;
+// Bring FromStr into scope so tests can use `Dictionary::from_str` directly
+// alongside the more-idiomatic `.parse::<Dictionary>()`.
+#[allow(unused_imports)]
+use std::str::FromStr;
 
 fn fixture(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -389,4 +393,163 @@ fn parses_class_extension() {
     assert_eq!(ext.id.as_deref(), Some("rect-annotations"));
     assert_eq!(ext.properties.len(), 1);
     assert_eq!(ext.properties[0].name, "label");
+}
+
+// ===== Strict-mode regression tests =====
+//
+// These tests are the *load-bearing* drift detectors for the crate:
+// - The synthetic-fixture-under-strict-mode test fails if anyone adds an
+//   element to the fixture without also modelling it (or vice versa).
+// - The MoneyMoney.sdef test (when present) cross-checks our DTD coverage
+//   against a real-world consumer-shipped sdef.
+// - The unknown-element / lenient-tolerates pair proves strict mode is
+//   distinct from lenient mode and actually rejects what it claims to.
+
+const VENDOR_EXTENDED_DICT: &str = r#"<?xml version="1.0"?>
+<dictionary>
+    <suite name="X" code="SUIT">
+        <command name="foo" code="SUITfoo1">
+            <vendor-extension/>
+        </command>
+    </suite>
+</dictionary>"#;
+
+#[test]
+fn strict_mode_accepts_full_synthetic_fixture() {
+    // Regression test: if anyone adds an unmodelled element to the
+    // synthetic fixture (or removes a name from KNOWN_ELEMENTS without a
+    // corresponding fixture update), this fails loud. Combined with the
+    // other commit-N tests that read deep fields, it proves every element
+    // we modelled is exercised at least once.
+    let dict = Dictionary::from_path_strict(fixture("synthetic.sdef"))
+        .expect("synthetic.sdef must parse cleanly under strict mode");
+    // Spot-check: at least one element from each major DTD category is
+    // present, so a future regression that drops a whole category from the
+    // fixture would also fail here rather than silently shrinking coverage.
+    let suite = &dict.suites[0];
+    assert!(
+        !suite.commands.is_empty(),
+        "synthetic fixture lost its commands"
+    );
+    assert!(
+        !suite.events.is_empty(),
+        "synthetic fixture lost its events"
+    );
+    assert!(
+        !suite.classes.is_empty(),
+        "synthetic fixture lost its classes"
+    );
+    assert!(
+        !suite.class_extensions.is_empty(),
+        "synthetic fixture lost its class-extensions"
+    );
+    assert!(
+        !suite.enumerations.is_empty(),
+        "synthetic fixture lost its enumerations"
+    );
+    assert!(
+        !suite.record_types.is_empty(),
+        "synthetic fixture lost its record-types"
+    );
+    assert!(
+        !suite.value_types.is_empty(),
+        "synthetic fixture lost its value-types"
+    );
+    assert!(
+        !suite.documentation.is_empty(),
+        "synthetic fixture lost its documentation"
+    );
+}
+
+#[test]
+fn strict_mode_rejects_unknown_element_with_typed_payload() {
+    let err = Dictionary::from_str_strict(VENDOR_EXTENDED_DICT)
+        .expect_err("strict mode must reject <vendor-extension>");
+    match &err {
+        sdef::Error::UnknownElement { name } => {
+            assert_eq!(
+                name, "vendor-extension",
+                "the unknown-element payload must carry the local name so callers can route on it"
+            );
+        }
+        other => panic!("expected Error::UnknownElement, got {other:?}"),
+    }
+    // The Display impl must surface the offending element so humans reading
+    // a CI log can diagnose the failure without re-running with --nocapture.
+    let rendered = err.to_string();
+    assert!(
+        rendered.contains("vendor-extension"),
+        "Error::Display must include the offending element name; got: {rendered}"
+    );
+}
+
+#[test]
+fn lenient_mode_silently_drops_unknown_element() {
+    // Sibling to the strict test above — proves the two modes have
+    // genuinely different behaviour on the same input. If quick-xml's
+    // serde defaults ever changed to reject unknown children, this would
+    // start failing and surface the surprise.
+    let dict = VENDOR_EXTENDED_DICT
+        .parse::<Dictionary>()
+        .expect("lenient mode tolerates unknown child elements");
+    let cmd = dict
+        .command("foo")
+        .expect("foo parses despite vendor-extension");
+    assert_eq!(cmd.code, "SUITfoo1");
+}
+
+#[test]
+fn strict_mode_rejects_xi_include_with_prefix() {
+    let xml = r#"<?xml version="1.0"?>
+<dictionary xmlns:xi="http://www.w3.org/2001/XInclude">
+    <suite name="X" code="SUIT">
+        <xi:include href="other.sdef"/>
+    </suite>
+</dictionary>"#;
+    let err = Dictionary::from_str_strict(xml).expect_err("strict mode must reject <xi:include>");
+    assert!(
+        matches!(err, sdef::Error::XIncludeUnsupported),
+        "expected Error::XIncludeUnsupported, got {err:?}"
+    );
+}
+
+#[test]
+fn strict_mode_forwards_malformed_xml_errors_as_xml_variant() {
+    // Strict mode must not silently swallow parse errors. A truncated
+    // document surfaces as Error::Xml, not Error::UnknownElement.
+    let err =
+        Dictionary::from_str_strict("<dictionary").expect_err("truncated document must error");
+    assert!(
+        matches!(err, sdef::Error::Xml(_)),
+        "malformed XML must surface as Error::Xml under strict mode, got {err:?}"
+    );
+}
+
+#[test]
+fn strict_mode_accepts_money_money_sdef_when_present() {
+    // Cross-checks our DTD coverage against a real-world sdef. Skips
+    // cleanly on machines where MoneyMoney.app isn't installed (CI).
+    let path = "/Applications/MoneyMoney.app/Contents/Resources/MoneyMoney.sdef";
+    if !std::path::Path::new(path).exists() {
+        eprintln!("(MoneyMoney.app not installed; skipping real-world strict-mode check)");
+        return;
+    }
+    let dict = Dictionary::from_path_strict(path).expect(
+        "MoneyMoney.sdef must parse cleanly under strict mode \
+         — DTD coverage gap in this crate if it doesn't",
+    );
+    // Spot-check: real sdef has the data we expect. Catches the case where
+    // a strict-mode change accidentally returns an empty Dictionary.
+    assert!(!dict.suites.is_empty());
+    assert!(!dict.suites[0].commands.is_empty());
+}
+
+#[test]
+fn command_result_rename_is_publicly_exposed() {
+    // Sanity smoke that `Result_` → `CommandResult` rename is reachable
+    // via the public API and the type matches Command.result's element.
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parses");
+    let echo = dict.command("echo text").expect("command must exist");
+    let result: &sdef::CommandResult = echo.result.as_ref().expect("echo has a result");
+    assert_eq!(result.ty.as_deref(), Some("text"));
 }

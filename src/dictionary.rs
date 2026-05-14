@@ -17,6 +17,7 @@ use crate::yorn::yorn;
 /// The root `<dictionary>` element of an sdef document.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename = "dictionary")]
+#[non_exhaustive]
 pub struct Dictionary {
     /// Optional human-readable title attribute (`title="…"`).
     #[serde(rename = "@title", default)]
@@ -32,6 +33,7 @@ pub struct Dictionary {
 /// A `<suite>` groups related commands, events, classes, enumerations,
 /// record-types, and value-types.
 #[derive(Debug, Clone, Deserialize)]
+#[non_exhaustive]
 pub struct Suite {
     /// Suite name (`name="…"`).
     #[serde(rename = "@name")]

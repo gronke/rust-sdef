@@ -21,4 +21,4 @@ thiserror = "2"
 # Pure-Rust SHA-256, used by the dtd_drift integration test to compare the
 # live `/System/Library/DTDs/sdef.dtd` against the pinned digest in
 # `tests/fixtures/sdef.dtd.sha256`.
-sha2 = "0.10"
+sha2 = "0.11.0"

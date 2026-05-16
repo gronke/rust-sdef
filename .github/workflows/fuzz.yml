@@ -51,7 +51,11 @@ jobs:
 
       - name: Install cargo-fuzz
         if: steps.cargo-fuzz-cache.outputs.cache-hit != 'true'
-        run: cargo install cargo-fuzz --locked
+        # No --locked: cargo-fuzz's published Cargo.lock pins `proc-macro-error
+        # 1.0.4`, which uses `#[rustc_layout_scalar_valid_range_start]` — an
+        # unstable attribute no longer accepted on current nightly. Without
+        # --locked, cargo resolves a fresher dep tree that compiles cleanly.
+        run: cargo install cargo-fuzz
 
       - name: Save cargo-fuzz binary
         if: steps.cargo-fuzz-cache.outputs.cache-hit != 'true'

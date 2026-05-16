@@ -17,7 +17,7 @@ use crate::yorn::yorn;
 /// when omitted, Cocoa Scripting derives defaults from the surrounding term
 /// (camel-cased names, pluralised element keys, etc.). See `man sdef` for
 /// the full rules.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 #[non_exhaustive]
 pub struct Cocoa {
     /// `name="…"` — legacy scriptSuite-compatibility attribute carried on
@@ -70,7 +70,7 @@ pub struct Cocoa {
 /// Restricts which sandboxed apps may invoke this command (or access this
 /// property/element) by matching the requesting app's identifier against
 /// `identifier`. The wildcard `"*"` matches any caller.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 #[non_exhaustive]
 pub struct AccessGroup {
     /// `identifier="…"` — reverse-DNS-style sandbox identifier, or `"*"`
@@ -93,7 +93,7 @@ pub struct AccessGroup {
 /// without losing the canonical mapping. At least one of `name`/`code` is
 /// required by the DTD; we treat both as optional here and let downstream
 /// validation enforce that.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 #[non_exhaustive]
 pub struct Synonym {
     /// `name="…"` — alternate scripting term.
@@ -125,7 +125,7 @@ pub struct Synonym {
 /// `<parameter>`/`<direct-parameter>`/`<result>` (since OS X 10.10). Each
 /// block holds one or more `<html>` snippets — escaped HTML text since
 /// OS X 10.5, raw text in earlier releases.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 #[non_exhaustive]
 pub struct Documentation {
     /// `<html>` text snippets. Each entry is the inner text of one `<html>`
@@ -141,7 +141,7 @@ pub struct Documentation {
 /// Documentation-only pointer to another scriptability element by name or
 /// id. No semantic effect on scripting behaviour; consumed by dictionary
 /// browsers.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 #[non_exhaustive]
 pub struct Xref {
     /// `target="…"` — name or id of the referenced element.

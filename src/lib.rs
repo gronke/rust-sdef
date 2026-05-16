@@ -76,7 +76,7 @@ mod strict;
 mod typeref;
 mod yorn;
 
-pub use class::{Accessor, Class, ClassExtension, Contents, Element, RespondsTo};
+pub use class::{Accessor, AccessorStyle, Class, ClassExtension, Contents, Element, RespondsTo};
 pub use command::{Command, CommandResult, DirectParameter, Event, Parameter};
 pub use decl::{Enumeration, Enumerator, Property, RecordType, ValueType};
 pub use dictionary::{Dictionary, Suite};
@@ -141,5 +141,29 @@ impl Dictionary {
             .iter()
             .flat_map(|s| &s.commands)
             .find(|c| c.name == name)
+    }
+
+    /// Find a class by its human-readable `name` attribute, searching all
+    /// suites. Returns `None` if no class with that name exists.
+    pub fn class(&self, name: &str) -> Option<&Class> {
+        self.suites
+            .iter()
+            .flat_map(|s| &s.classes)
+            .find(|c| c.name == name)
+    }
+
+    /// Find a suite by its `name` attribute. Returns `None` if no suite with
+    /// that name exists.
+    pub fn suite(&self, name: &str) -> Option<&Suite> {
+        self.suites.iter().find(|s| s.name == name)
+    }
+
+    /// Find an enumeration by its `name` attribute, searching all suites.
+    /// Returns `None` if no enumeration with that name exists.
+    pub fn enumeration(&self, name: &str) -> Option<&Enumeration> {
+        self.suites
+            .iter()
+            .flat_map(|s| &s.enumerations)
+            .find(|e| e.name == name)
     }
 }

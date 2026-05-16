@@ -1,0 +1,167 @@
+# Per-element attribute manifest for /System/Library/DTDs/sdef.dtd
+# (macOS 26.5 snapshot; same DTD hash-pinned by tests/fixtures/sdef.dtd.sha256).
+#
+# tests/attribute_conformance.rs verifies this manifest against the live DTD
+# on macOS hosts. When Apple ships a DTD revision, the test prints a diff
+# describing which entries to update. Treat this file the same way as
+# src/strict.rs::KNOWN_ELEMENTS: edits here must be paired with AST changes
+# in src/.
+#
+# Fields per element:
+#   attributes  list of DTD-declared attribute names (after expanding
+#               %common.attrib; — i.e. xmlns:xi and xml:base are stripped as
+#               XML-namespace plumbing the parser does not model).
+#   required    subset of `attributes` that the DTD marks #REQUIRED.
+#
+# The [enums] table at the bottom captures closed-enumeration attribute
+# values that strict-mode parsing must constrain at the type level (the
+# accessor.style enum, the rw/access enums, and cocoa.boolean-value).
+# yorn-typed (yes|no) attributes are validated by the yorn deserializer at
+# parse time and are intentionally not listed here.
+
+[[element]]
+name = "access-group"
+attributes = ["identifier", "access"]
+required = ["identifier"]
+
+[[element]]
+name = "accessor"
+attributes = ["style"]
+required = ["style"]
+
+[[element]]
+name = "class"
+attributes = ["name", "id", "code", "hidden", "plural", "inherits", "description"]
+required = ["name", "code"]
+
+[[element]]
+name = "class-extension"
+attributes = ["id", "extends", "hidden", "title", "description"]
+required = ["extends"]
+
+[[element]]
+name = "cocoa"
+attributes = [
+    "name",
+    "class",
+    "key",
+    "method",
+    "insert-at-beginning",
+    "boolean-value",
+    "integer-value",
+    "string-value",
+]
+required = []
+
+[[element]]
+name = "command"
+attributes = ["name", "id", "code", "description", "hidden"]
+required = ["name", "code"]
+
+[[element]]
+name = "contents"
+attributes = ["name", "code", "hidden", "type", "access", "in-properties", "description"]
+required = []
+
+[[element]]
+name = "dictionary"
+attributes = ["title"]
+required = []
+
+[[element]]
+name = "direct-parameter"
+attributes = ["type", "optional", "requires-access", "description"]
+required = []
+
+[[element]]
+name = "documentation"
+attributes = []
+required = []
+
+[[element]]
+name = "element"
+attributes = ["type", "access", "hidden", "description"]
+required = ["type"]
+
+[[element]]
+name = "enumeration"
+attributes = ["name", "id", "code", "hidden", "description", "inline"]
+required = ["name", "code"]
+
+[[element]]
+name = "enumerator"
+attributes = ["name", "code", "hidden", "description"]
+required = ["name", "code"]
+
+[[element]]
+name = "event"
+attributes = ["name", "id", "code", "description", "hidden"]
+required = ["name", "code"]
+
+[[element]]
+name = "html"
+attributes = []
+required = []
+
+[[element]]
+name = "parameter"
+attributes = ["name", "code", "hidden", "type", "optional", "requires-access", "description"]
+required = ["name", "code"]
+
+[[element]]
+name = "property"
+attributes = ["name", "code", "hidden", "type", "access", "in-properties", "description"]
+required = ["name", "code"]
+
+[[element]]
+name = "record-type"
+attributes = ["name", "id", "code", "hidden", "plural", "description"]
+required = ["name", "code"]
+
+[[element]]
+name = "responds-to"
+attributes = ["command", "hidden", "name"]
+required = ["command"]
+
+[[element]]
+name = "result"
+attributes = ["type", "description"]
+required = []
+
+[[element]]
+name = "suite"
+attributes = ["name", "code", "description", "hidden"]
+required = ["name", "code"]
+
+[[element]]
+name = "synonym"
+attributes = ["name", "code", "hidden", "plural"]
+required = []
+
+[[element]]
+name = "type"
+attributes = ["type", "list", "hidden"]
+required = ["type"]
+
+[[element]]
+name = "value-type"
+attributes = ["name", "id", "code", "hidden", "plural", "description"]
+required = ["name", "code"]
+
+[[element]]
+name = "xref"
+attributes = ["target", "hidden"]
+required = ["target"]
+
+# Closed-enumeration attribute values that the parser must constrain to a
+# fixed set. yorn (yes|no) attributes are handled by the `yorn` deserializer
+# module and intentionally omitted here.
+[enums]
+"accessor.style" = ["index", "name", "id", "range", "relative", "test"]
+"access-group.access" = ["r", "w", "rw"]
+"contents.access" = ["r", "w", "rw"]
+"direct-parameter.requires-access" = ["r", "w", "rw"]
+"element.access" = ["r", "w", "rw"]
+"parameter.requires-access" = ["r", "w", "rw"]
+"property.access" = ["r", "w", "rw"]
+"cocoa.boolean-value" = ["YES", "NO"]

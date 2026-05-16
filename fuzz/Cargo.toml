@@ -1,0 +1,34 @@
+[package]
+name = "sdef-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+rust-version = "1.85"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.sdef]
+path = ".."
+
+# Empty workspace table so this crate does not get pulled into the parent
+# crate's build by stray cargo discovery. cargo-fuzz operates on this
+# directory directly via `cargo fuzz run <target>`.
+[workspace]
+
+[[bin]]
+name = "parse_strict"
+path = "fuzz_targets/parse_strict.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parse_lenient"
+path = "fuzz_targets/parse_lenient.rs"
+test = false
+doc = false
+bench = false

@@ -21,7 +21,7 @@ use crate::yorn::yorn;
 /// `location specifier`, `record`, `date`, `file`, `point`, `rectangle`,
 /// `type`, `missing value`) or a user-declared class/enumeration/record-type/
 /// value-type by name.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 #[non_exhaustive]
 pub struct TypeRef {
     /// `type="…"` — primitive name or user-declared type reference.

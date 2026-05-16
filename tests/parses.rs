@@ -11,7 +11,7 @@ mod common;
 
 use std::path::PathBuf;
 
-use sdef::{AccessorStyle, Dictionary};
+use sdef::{Access, AccessorStyle, Dictionary};
 // Bring FromStr into scope so tests can use `Dictionary::from_str` directly
 // alongside the more-idiomatic `.parse::<Dictionary>()`.
 #[allow(unused_imports)]
@@ -113,7 +113,7 @@ fn parses_access_groups() {
         suite.access_groups[0].identifier,
         "com.example.synthetic.read"
     );
-    assert_eq!(suite.access_groups[0].access.as_deref(), Some("r"));
+    assert_eq!(suite.access_groups[0].access, Some(Access::Read));
 
     let echo = dict.command("echo text").expect("command must exist");
     assert_eq!(echo.access_groups.len(), 1);
@@ -220,7 +220,7 @@ fn parses_hidden_and_requires_access_flags() {
     assert!(!echo.hidden);
 
     let text_param = &echo.parameters[0];
-    assert_eq!(text_param.requires_access.as_deref(), Some("r"));
+    assert_eq!(text_param.requires_access, Some(Access::Read));
     assert!(!text_param.hidden);
 
     let upper_param = &echo.parameters[1];
@@ -293,7 +293,7 @@ fn parses_record_type_with_properties() {
 
     let bottom = &bbox.properties[3];
     assert_eq!(bottom.name, "bottom");
-    assert_eq!(bottom.access.as_deref(), Some("r"));
+    assert_eq!(bottom.access, Some(Access::Read));
     assert_eq!(bottom.in_properties, Some(false)); // explicit "no" in fixture
 }
 
@@ -329,7 +329,7 @@ fn parses_classes_with_inheritance() {
     assert_eq!(cocoa.class.as_deref(), Some("SyntheticShape"));
     assert_eq!(shape.properties.len(), 1);
     assert_eq!(shape.properties[0].name, "name");
-    assert_eq!(shape.properties[0].access.as_deref(), Some("r"));
+    assert_eq!(shape.properties[0].access, Some(Access::Read));
 
     let rect = &suite.classes[1];
     assert_eq!(rect.name, "rectangle");
@@ -353,7 +353,7 @@ fn parses_element_with_accessors() {
 
     let elem = &rect.elements[0];
     assert_eq!(elem.ty, "point");
-    assert_eq!(elem.access.as_deref(), Some("r"));
+    assert_eq!(elem.access, Some(Access::Read));
     let cocoa = elem.cocoa.as_ref().expect("element has <cocoa>");
     assert_eq!(cocoa.key.as_deref(), Some("anchorPoints"));
 
@@ -756,7 +756,7 @@ fn parses_extras_property_access_group_and_legacy_responds_to_name() {
         severity.access_groups[0].identifier,
         "com.example.edge.read"
     );
-    assert_eq!(severity.access_groups[0].access.as_deref(), Some("r"));
+    assert_eq!(severity.access_groups[0].access, Some(Access::Read));
 
     // <element> with four accessor styles (exercises the accessor vector,
     // not just one entry as synthetic.sdef does).

@@ -15,9 +15,17 @@
 //! fails when Apple makes additions; that's the signal to update the list
 //! below (and the rest of the AST) in lock-step.
 //!
-//! Limitations: this pass validates element names only, not attribute names
-//! or attribute value enumerations. For full DTD validation rely on
-//! `xmllint --dtdvalid` (also wired up in commit 6's drift test on macOS).
+//! Strict mode also rejects unknown values for the eight closed-enum
+//! attributes (`accessor.style`, `<…>.access`, `<…>.requires-access`,
+//! `cocoa.boolean-value`) declared by the DTD. The pinned value sets live
+//! in [`CLOSED_ENUM_ATTRS`] below and are kept in lock-step with
+//! `tests/fixtures/attribute_manifest.toml` via the `attribute_conformance`
+//! test.
+//!
+//! Limitations: this pass validates element names plus the eight
+//! closed-enum attributes, but not arbitrary attribute names. For full DTD
+//! validation rely on `xmllint --dtdvalid` (wired up in
+//! `tests/dtd_drift.rs` on macOS).
 
 use quick_xml::Reader;
 use quick_xml::events::Event;
@@ -59,9 +67,69 @@ pub(crate) const KNOWN_ELEMENTS: &[&str] = &[
     "xref",
 ];
 
-/// Walk `xml` once, rejecting unknown element names and `xi:include`
-/// directives. Returns `Ok(())` for documents that contain only modelled
-/// elements; callers then proceed with regular serde-driven deserialization.
+/// Closed-enumeration attribute constraint. Each entry pins one
+/// `(element, attribute) → allowed values` mapping from the DTD; strict
+/// mode rejects any value outside the set.
+///
+/// The values are kept in lock-step with the DTD via the
+/// `attribute_conformance` integration test, which parses the live
+/// `/System/Library/DTDs/sdef.dtd` via libxml2 and diff-checks against
+/// `tests/fixtures/attribute_manifest.toml`. Updating either table
+/// without the other will surface a CI failure on macOS.
+struct ClosedEnumAttr {
+    element: &'static str,
+    attribute: &'static [u8],
+    allowed: &'static [&'static [u8]],
+}
+
+const CLOSED_ENUM_ATTRS: &[ClosedEnumAttr] = &[
+    ClosedEnumAttr {
+        element: "accessor",
+        attribute: b"style",
+        allowed: &[b"index", b"name", b"id", b"range", b"relative", b"test"],
+    },
+    ClosedEnumAttr {
+        element: "access-group",
+        attribute: b"access",
+        allowed: &[b"r", b"w", b"rw"],
+    },
+    ClosedEnumAttr {
+        element: "cocoa",
+        attribute: b"boolean-value",
+        allowed: &[b"YES", b"NO"],
+    },
+    ClosedEnumAttr {
+        element: "contents",
+        attribute: b"access",
+        allowed: &[b"r", b"w", b"rw"],
+    },
+    ClosedEnumAttr {
+        element: "direct-parameter",
+        attribute: b"requires-access",
+        allowed: &[b"r", b"w", b"rw"],
+    },
+    ClosedEnumAttr {
+        element: "element",
+        attribute: b"access",
+        allowed: &[b"r", b"w", b"rw"],
+    },
+    ClosedEnumAttr {
+        element: "parameter",
+        attribute: b"requires-access",
+        allowed: &[b"r", b"w", b"rw"],
+    },
+    ClosedEnumAttr {
+        element: "property",
+        attribute: b"access",
+        allowed: &[b"r", b"w", b"rw"],
+    },
+];
+
+/// Walk `xml` once, rejecting unknown element names, `xi:include`
+/// directives, and out-of-range values for the closed-enum attributes
+/// listed in [`CLOSED_ENUM_ATTRS`]. Returns `Ok(())` for documents that
+/// contain only modelled constructs; callers then proceed with regular
+/// serde-driven deserialization.
 pub(crate) fn validate_strict(xml: &str) -> Result<(), Error> {
     let mut reader = Reader::from_str(xml);
     loop {
@@ -82,6 +150,7 @@ pub(crate) fn validate_strict(xml: &str) -> Result<(), Error> {
                         name: local_str.to_owned(),
                     });
                 }
+                validate_closed_enum_attrs(local_str, &e)?;
             }
             Ok(Event::Eof) => return Ok(()),
             Err(e) => {
@@ -92,6 +161,38 @@ pub(crate) fn validate_strict(xml: &str) -> Result<(), Error> {
             _ => {}
         }
     }
+}
+
+/// Inspect the attributes of one start/empty element against
+/// [`CLOSED_ENUM_ATTRS`]. Cheap: at most 8 constraint rows checked per
+/// element, and attribute iteration short-circuits on the first match.
+fn validate_closed_enum_attrs(
+    local_str: &str,
+    e: &quick_xml::events::BytesStart<'_>,
+) -> Result<(), Error> {
+    for constraint in CLOSED_ENUM_ATTRS {
+        if constraint.element != local_str {
+            continue;
+        }
+        for attr in e.attributes().flatten() {
+            let key = attr.key;
+            if key.prefix().is_some() {
+                continue; // ignore namespaced attributes (xmlns:xi etc.)
+            }
+            if key.local_name().as_ref() != constraint.attribute {
+                continue;
+            }
+            let value = attr.value.as_ref();
+            if !constraint.allowed.contains(&value) {
+                return Err(Error::UnknownAttributeValue {
+                    element: constraint.element.to_owned(),
+                    attribute: String::from_utf8_lossy(constraint.attribute).into_owned(),
+                    value: String::from_utf8_lossy(value).into_owned(),
+                });
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -170,5 +271,70 @@ mod tests {
             Err(Error::XIncludeUnsupported) => {}
             other => panic!("expected XIncludeUnsupported, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn validate_rejects_unknown_accessor_style() {
+        let xml = r#"<?xml version="1.0"?>
+            <dictionary>
+                <suite name="S" code="SUIT">
+                    <class name="thing" code="thng">
+                        <element type="bit">
+                            <accessor style="weird"/>
+                        </element>
+                    </class>
+                </suite>
+            </dictionary>"#;
+        match validate_strict(xml) {
+            Err(Error::UnknownAttributeValue {
+                element,
+                attribute,
+                value,
+            }) => {
+                assert_eq!(element, "accessor");
+                assert_eq!(attribute, "style");
+                assert_eq!(value, "weird");
+            }
+            other => panic!("expected UnknownAttributeValue, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn validate_rejects_unknown_access_value() {
+        let xml = r#"<?xml version="1.0"?>
+            <dictionary>
+                <suite name="S" code="SUIT">
+                    <class name="thing" code="thng">
+                        <element type="bit" access="execute"/>
+                    </class>
+                </suite>
+            </dictionary>"#;
+        match validate_strict(xml) {
+            Err(Error::UnknownAttributeValue {
+                element,
+                attribute,
+                value,
+            }) => {
+                assert_eq!(element, "element");
+                assert_eq!(attribute, "access");
+                assert_eq!(value, "execute");
+            }
+            other => panic!("expected UnknownAttributeValue, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn validate_accepts_canonical_closed_enum_values() {
+        let xml = r#"<?xml version="1.0"?>
+            <dictionary>
+                <suite name="S" code="SUIT">
+                    <class name="thing" code="thng">
+                        <element type="bit" access="rw">
+                            <accessor style="index"/>
+                        </element>
+                    </class>
+                </suite>
+            </dictionary>"#;
+        validate_strict(xml).expect("canonical closed-enum values must pass strict mode");
     }
 }

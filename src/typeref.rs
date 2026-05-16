@@ -6,9 +6,9 @@
 //! or a previously declared user type, optionally marked as a list and
 //! optionally containing nested `<type>` children for union expressions.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-use crate::yorn::yorn;
+use crate::yorn;
 
 /// A typed reference: the `<type>` child element.
 ///
@@ -21,7 +21,7 @@ use crate::yorn::yorn;
 /// `location specifier`, `record`, `date`, `file`, `point`, `rectangle`,
 /// `type`, `missing value`) or a user-declared class/enumeration/record-type/
 /// value-type by name.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct TypeRef {
     /// `type="…"` — primitive name or user-declared type reference.
@@ -31,11 +31,23 @@ pub struct TypeRef {
     /// `list="yes|no"` — collection-of-`type` marker. Defaults to `false`.
     /// Nested-list expressions ("list of list of …") are not supported by
     /// Cocoa Scripting; the DTD permits the markup but it has no effect.
-    #[serde(rename = "@list", default, deserialize_with = "yorn")]
+    #[serde(
+        rename = "@list",
+        default,
+        deserialize_with = "yorn::de",
+        serialize_with = "yorn::ser",
+        skip_serializing_if = "yorn::is_false"
+    )]
     pub list: bool,
 
     /// `hidden="yes|no"` — defaults to `false`.
-    #[serde(rename = "@hidden", default, deserialize_with = "yorn")]
+    #[serde(
+        rename = "@hidden",
+        default,
+        deserialize_with = "yorn::de",
+        serialize_with = "yorn::ser",
+        skip_serializing_if = "yorn::is_false"
+    )]
     pub hidden: bool,
 
     /// Nested `<type>` children. Per the DTD, `<type>` elements can
@@ -43,6 +55,6 @@ pub struct TypeRef {
     /// rare. Most union expressions appear as multiple sibling `<type>`
     /// elements within a single parent (parameter/result/property) rather
     /// than as nested children.
-    #[serde(rename = "type", default)]
+    #[serde(rename = "type", default, skip_serializing_if = "Vec::is_empty")]
     pub types: Vec<TypeRef>,
 }

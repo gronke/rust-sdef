@@ -35,6 +35,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Install libxml2 dev headers
+        # tests/common/mod.rs links against libxml2 via the `libxml` dev-dep
+        # to parse the system DTD. cargo clippy --all-targets compiles test
+        # code, so the headers must be present here too.
+        run: sudo apt-get update && sudo apt-get install -y libxml2-dev pkg-config
+
       - name: Install Rust toolchain
         uses: ./.github/actions/install-rust-toolchain
         with:
@@ -82,6 +88,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
+      - name: Install libxml2 dev headers
+        # Required by the `libxml` dev-dep used in tests/common/mod.rs.
+        run: sudo apt-get update && sudo apt-get install -y libxml2-dev pkg-config
 
       - name: Install Rust toolchain
         uses: ./.github/actions/install-rust-toolchain

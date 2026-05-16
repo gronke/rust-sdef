@@ -6,7 +6,9 @@
 //! [`crate::Property`] declarations live in [`crate::decl`] because
 //! `<record-type>` shares the same property concept.
 
-use serde::Deserialize;
+use std::fmt;
+
+use serde::{Deserialize, Deserializer};
 
 use crate::decl::Property;
 use crate::metadata::{AccessGroup, Cocoa, Documentation, Synonym, Xref};
@@ -22,7 +24,7 @@ use crate::yorn::yorn;
 /// quick-xml's `overlapped-lists` cargo feature to deserialize each child
 /// directly into its typed `Vec` field regardless of order. The same
 /// applies to [`crate::Suite`] and [`ClassExtension`].
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[non_exhaustive]
 pub struct Class {
     /// Class name (`name="…"`).
@@ -107,7 +109,7 @@ pub struct Class {
 ///
 /// Like [`Class`], relies on quick-xml's `overlapped-lists` feature so that
 /// class-contents children can appear in any order.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[non_exhaustive]
 pub struct ClassExtension {
     /// `extends="…"` — name of the class being extended (required).
@@ -172,7 +174,7 @@ pub struct ClassExtension {
 /// Lets AppleScript treat `word 1 of document 1` as shorthand for `word 1
 /// of text of document 1`. Most attributes are optional and default per the
 /// man page: `name="contents"`, `code="pcnt"`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[non_exhaustive]
 pub struct Contents {
     /// `name="…"` — defaults to `"contents"` per the man page.
@@ -227,7 +229,7 @@ pub struct Contents {
 
 /// An `<element>` — a to-many relationship from a class to instances of
 /// another class.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[non_exhaustive]
 pub struct Element {
     /// `type="…"` — class name of the contained objects (required).
@@ -267,19 +269,89 @@ pub struct Element {
 ///
 /// Used by aete-based dictionaries; Cocoa Scripting derives access styles
 /// from properties and largely ignores explicit `<accessor>` declarations.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[non_exhaustive]
 pub struct Accessor {
-    /// `style="…"` — one of `index`, `name`, `id`, `range`, `relative`,
-    /// `test`. Kept as a raw `String`; the parser does not enforce the
-    /// enum.
+    /// `style="…"` — one of the six DTD-declared `accessor-type` values.
+    /// Unknown values deserialize to [`AccessorStyle::Other`] so lenient
+    /// parsing keeps working; strict-mode parsing rejects them via the
+    /// element-name pre-pass plus the
+    /// `tests/attribute_conformance` test that keeps this enum in sync
+    /// with the DTD.
     #[serde(rename = "@style")]
-    pub style: String,
+    pub style: AccessorStyle,
+}
+
+/// The closed set of `<accessor style="…">` values declared by the sdef
+/// DTD's `accessor-type` entity: `(index | name | id | range | relative |
+/// test)`.
+///
+/// Unknown values deserialize to [`AccessorStyle::Other`] for lenient mode;
+/// the variant list is kept in lock-step with the DTD via the
+/// `attribute_conformance` integration test.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum AccessorStyle {
+    /// `style="index"` — by 1-based ordinal.
+    Index,
+    /// `style="name"` — by `name` attribute.
+    Name,
+    /// `style="id"` — by `id` attribute.
+    Id,
+    /// `style="range"` — by inclusive range of two specifiers.
+    Range,
+    /// `style="relative"` — relative to another specifier (e.g. `before`/`after`).
+    Relative,
+    /// `style="test"` — by predicate (`every X where …`).
+    Test,
+    /// Unrecognised `style` value, preserved verbatim for lenient parsing.
+    Other(String),
+}
+
+impl AccessorStyle {
+    /// Returns the canonical DTD string for this variant, or the wrapped
+    /// value for [`AccessorStyle::Other`]. Mirrors the textual form the
+    /// parser accepts.
+    pub fn as_str(&self) -> &str {
+        match self {
+            AccessorStyle::Index => "index",
+            AccessorStyle::Name => "name",
+            AccessorStyle::Id => "id",
+            AccessorStyle::Range => "range",
+            AccessorStyle::Relative => "relative",
+            AccessorStyle::Test => "test",
+            AccessorStyle::Other(s) => s,
+        }
+    }
+}
+
+impl fmt::Display for AccessorStyle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for AccessorStyle {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw = String::deserialize(deserializer)?;
+        Ok(match raw.as_str() {
+            "index" => AccessorStyle::Index,
+            "name" => AccessorStyle::Name,
+            "id" => AccessorStyle::Id,
+            "range" => AccessorStyle::Range,
+            "relative" => AccessorStyle::Relative,
+            "test" => AccessorStyle::Test,
+            _ => AccessorStyle::Other(raw),
+        })
+    }
 }
 
 /// A `<responds-to>` declaration mapping a verb to a class's
 /// implementation.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[non_exhaustive]
 pub struct RespondsTo {
     /// `command="…"` — the verb name or id this class handles.
@@ -308,4 +380,14 @@ pub struct RespondsTo {
     /// Zero or more `<access-group>` entitlement children.
     #[serde(rename = "access-group", default)]
     pub access_groups: Vec<AccessGroup>,
+}
+
+impl RespondsTo {
+    /// Returns the canonical command reference, preferring `command` (the
+    /// modern attribute introduced in OS X 10.5) and falling back to the
+    /// pre-10.5 `name` alias. Returns `None` only when both attributes are
+    /// absent — a malformed `<responds-to>` per the DTD.
+    pub fn resolved_command(&self) -> Option<&str> {
+        self.command.as_deref().or(self.name.as_deref())
+    }
 }

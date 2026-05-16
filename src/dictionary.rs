@@ -15,7 +15,7 @@ use crate::metadata::{AccessGroup, Cocoa, Documentation};
 use crate::yorn::yorn;
 
 /// The root `<dictionary>` element of an sdef document.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename = "dictionary")]
 #[non_exhaustive]
 pub struct Dictionary {
@@ -26,8 +26,14 @@ pub struct Dictionary {
     /// All `<suite>` children. The DTD requires at least one suite.
     #[serde(rename = "suite", default)]
     pub suites: Vec<Suite>,
-    // TODO(specialist): the DTD also permits zero-or-more <documentation>
-    // siblings of <suite>. Model them when a consumer asks for it.
+
+    /// Optional root-level `<documentation>` siblings of `<suite>`. The DTD's
+    /// content model for `<dictionary>` is `(documentation*, suite+)`, so a
+    /// well-formed sdef may carry top-level documentation blocks alongside
+    /// its suites. Parsed in document order; routed here regardless of where
+    /// they appear thanks to quick-xml's `overlapped-lists` feature.
+    #[serde(rename = "documentation", default)]
+    pub documentation: Vec<Documentation>,
 }
 
 /// A `<suite>` groups related commands, events, classes, enumerations,
@@ -39,7 +45,7 @@ pub struct Dictionary {
 /// (e.g. `CocoaStandard.sdef` alternates commands and enumerations). We
 /// rely on quick-xml's `overlapped-lists` cargo feature to deserialize
 /// each child directly into its typed `Vec` field regardless of order.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[non_exhaustive]
 pub struct Suite {
     /// Suite name (`name="…"`).

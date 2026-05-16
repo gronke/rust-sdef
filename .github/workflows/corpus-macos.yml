@@ -22,6 +22,10 @@ name: Corpus (macOS)
 #     (`gh workflow run corpus-macos.yml`),
 #   - investigating a `corpus_smoke` failure surfaced locally,
 #   - before tagging a release.
+#
+# The corpus_smoke step also uploads target/corpus_coverage.json — a
+# per-fixture map of (element, attribute) names seen — which the conformance
+# matrix consumes (see tests/conformance_matrix.rs).
 
 on:
   workflow_dispatch:
@@ -41,6 +45,14 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
+
+      - name: Install libxml2 + pkg-config (Homebrew)
+        # tests/common/mod.rs depends on the `libxml` crate, which needs
+        # libxml2 + pkg-config to build. macOS ships an older libxml2 in
+        # /usr/lib but no .pc file; Homebrew provides both.
+        run: |
+          brew install libxml2 pkg-config
+          echo "PKG_CONFIG_PATH=$(brew --prefix libxml2)/lib/pkgconfig" >> "$GITHUB_ENV"
 
       - name: Install Rust toolchain
         uses: ./.github/actions/install-rust-toolchain
@@ -74,10 +86,26 @@ jobs:
       - name: DTD drift + xmllint validation
         run: cargo test --test dtd_drift -- --nocapture
 
-      - name: Strict-mode corpus against /System/Library/ScriptingDefinitions
+      - name: Attribute-level conformance (manifest vs live DTD)
+        # Self-skips on non-macOS; here on macos-latest the live DTD is
+        # present, so this fully exercises the per-element attribute manifest.
+        run: cargo test --test attribute_conformance -- --nocapture
+
+      - name: Strict-mode corpus against system + Xcode sdefs
+        # Colon-separated paths; missing directories are skipped silently so
+        # this stays green even if a runner image drops Xcode.
         env:
-          SDEF_FIXTURE_DIR: /System/Library/ScriptingDefinitions
+          SDEF_FIXTURE_DIR: /System/Library/ScriptingDefinitions:/Applications/Xcode.app/Contents/Resources
         run: cargo test corpus_smoke -- --ignored --nocapture
+
+      - name: Upload corpus coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-coverage
+          path: target/corpus_coverage.json
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Save cargo registry & git
         uses: actions/cache/save@v5

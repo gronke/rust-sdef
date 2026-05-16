@@ -3,6 +3,14 @@
 use thiserror::Error;
 
 /// Errors produced by [`crate::Dictionary`] parsing.
+///
+/// # SemVer contract
+///
+/// The [`Error::Xml`] variant re-exports [`quick_xml::DeError`] as part of the
+/// public API. Bumping the `quick-xml` major version is therefore a breaking
+/// change for this crate: callers that pattern-match `Error::Xml(_)` and use
+/// the wrapped value would need to update. This crate will bump its own major
+/// version in lock-step when that happens.
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum Error {

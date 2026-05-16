@@ -7,9 +7,11 @@
 //! application-proprietary) covering classes, enumerations, and the elements
 //! the initial AST doesn't yet model.
 
+mod common;
+
 use std::path::PathBuf;
 
-use sdef::Dictionary;
+use sdef::{AccessorStyle, Dictionary};
 // Bring FromStr into scope so tests can use `Dictionary::from_str` directly
 // alongside the more-idiomatic `.parse::<Dictionary>()`.
 #[allow(unused_imports)]
@@ -356,8 +358,8 @@ fn parses_element_with_accessors() {
     assert_eq!(cocoa.key.as_deref(), Some("anchorPoints"));
 
     assert_eq!(elem.accessors.len(), 2);
-    assert_eq!(elem.accessors[0].style, "index");
-    assert_eq!(elem.accessors[1].style, "id");
+    assert_eq!(elem.accessors[0].style, AccessorStyle::Index);
+    assert_eq!(elem.accessors[1].style, AccessorStyle::Id);
 }
 
 #[test]
@@ -776,46 +778,90 @@ fn parses_extras_property_access_group_and_legacy_responds_to_name() {
 
 // ===== Opt-in real-world corpus probe =====
 //
-// Run with: SDEF_FIXTURE_DIR=/Applications/MoneyMoney.app/Contents/Resources \
+// Run with: SDEF_FIXTURE_DIR=/System/Library/ScriptingDefinitions:/Applications/Xcode.app/Contents/Resources \
 //           cargo test corpus_smoke -- --ignored --nocapture
 //
-// Iterates every *.sdef under the given directory and asserts they all
-// parse cleanly under strict mode. Useful for ad-hoc validation against a
-// developer's local system sdefs without committing licensed Apple content.
+// Iterates every *.sdef under the given (colon-separated) directories and
+// asserts they all parse cleanly under strict mode. Emits a coverage report
+// to `target/corpus_coverage.json` so the conformance-matrix generator can
+// surface which DTD constructs are exercised by real-world fixtures.
 
 #[test]
 #[ignore = "opt-in: requires SDEF_FIXTURE_DIR env var"]
 fn corpus_smoke() {
-    let dir = match std::env::var("SDEF_FIXTURE_DIR") {
-        Ok(d) => PathBuf::from(d),
-        Err(_) => {
-            eprintln!(
-                "SDEF_FIXTURE_DIR not set — this test is opt-in. \
-                 Try: SDEF_FIXTURE_DIR=/System/Library/ScriptingDefinitions \
-                 cargo test corpus_smoke -- --ignored --nocapture"
-            );
-            return;
-        }
+    let Ok(raw) = std::env::var("SDEF_FIXTURE_DIR") else {
+        eprintln!(
+            "SDEF_FIXTURE_DIR not set — this test is opt-in. Try: \
+             SDEF_FIXTURE_DIR=/System/Library/ScriptingDefinitions \
+             cargo test corpus_smoke -- --ignored --nocapture"
+        );
+        return;
     };
 
-    let entries = std::fs::read_dir(&dir)
-        .unwrap_or_else(|e| panic!("read SDEF_FIXTURE_DIR={}: {e}", dir.display()));
+    let dirs: Vec<PathBuf> = raw
+        .split(':')
+        .filter(|s| !s.is_empty())
+        .map(PathBuf::from)
+        .collect();
 
     let mut count = 0usize;
     let mut failures: Vec<String> = Vec::new();
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.extension().is_some_and(|e| e == "sdef") {
+    let mut fixtures: std::collections::BTreeMap<
+        String,
+        std::collections::BTreeMap<String, std::collections::BTreeSet<String>>,
+    > = std::collections::BTreeMap::new();
+
+    for dir in &dirs {
+        let read = match std::fs::read_dir(dir) {
+            Ok(r) => r,
+            Err(e) => {
+                // Missing directories are not an error — e.g. Xcode may not
+                // be installed. Log and continue so the test reflects what
+                // the runner actually has available.
+                eprintln!("corpus_smoke: skipping {}: {e}", dir.display());
+                continue;
+            }
+        };
+        for entry in read.flatten() {
+            let path = entry.path();
+            if path.extension().is_none_or(|e| e != "sdef") {
+                continue;
+            }
             count += 1;
-            if let Err(e) = Dictionary::from_path_strict(&path) {
-                failures.push(format!("{}: {e}", path.display()));
+            let text = match std::fs::read_to_string(&path) {
+                Ok(t) => t,
+                Err(e) => {
+                    failures.push(format!("{}: read failed: {e}", path.display()));
+                    continue;
+                }
+            };
+            match sdef::Dictionary::from_str_strict(&text) {
+                Ok(_) => {
+                    fixtures.insert(path.display().to_string(), common::scan_xml_coverage(&text));
+                }
+                Err(e) => failures.push(format!("{}: {e}", path.display())),
             }
         }
     }
 
+    let coverage = common::CorpusCoverage::from_fixtures(fixtures);
+    if let Err(e) = coverage.write_default() {
+        eprintln!(
+            "corpus_smoke: failed to write {}: {e}",
+            common::CORPUS_COVERAGE_PATH
+        );
+    } else {
+        eprintln!(
+            "corpus_smoke: wrote coverage to {} ({} elements observed across {} fixtures)",
+            common::CORPUS_COVERAGE_PATH,
+            coverage.aggregate.len(),
+            coverage.total_fixtures,
+        );
+    }
+
     eprintln!(
-        "corpus_smoke: checked {count} sdef file(s) under {}",
-        dir.display()
+        "corpus_smoke: checked {count} sdef file(s) under {} directory(ies)",
+        dirs.len()
     );
     if !failures.is_empty() {
         for f in &failures {

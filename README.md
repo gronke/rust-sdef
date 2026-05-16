@@ -174,8 +174,9 @@ sdefs they encounter.
 ## Roadmap
 
 - [ ] Round-trip `Serialize` derive with property-based equivalence tests.
-- [ ] CI matrix: Linux only is sufficient for the parser; macOS for the
-      drift test. Already configured per the modelled CI workflow.
+- [x] CI matrix: Linux for the parser, macOS for the drift test +
+      attribute-conformance + corpus run. Configured under
+      [`.github/workflows/`](.github/workflows/).
 - [ ] First publish to crates.io. Pre-flight: pin a sensible MSRV, set
       the `repository` field in `Cargo.toml`, freeze the API surface.
 

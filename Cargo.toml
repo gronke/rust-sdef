@@ -1,6 +1,6 @@
 [package]
 name = "sdef"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.85"
 description = "Typed parser for Apple .sdef (scripting definition) XML files."
@@ -22,3 +22,15 @@ thiserror = "2"
 # live `/System/Library/DTDs/sdef.dtd` against the pinned digest in
 # `tests/fixtures/sdef.dtd.sha256`.
 sha2 = "0.11.0"
+# TOML loader for tests/fixtures/attribute_manifest.toml, consumed by
+# tests/attribute_conformance.rs and tests/conformance_matrix.rs.
+toml = "0.8"
+# JSON serialization for the corpus coverage artifact emitted by
+# tests/parses.rs::corpus_smoke and consumed by tests/conformance_matrix.rs.
+serde_json = "1"
+# libxml2 bindings, used only by tests/common/mod.rs::parse_dtd for parsing
+# the system DTD. The high-level API doesn't expose Dtd walking — we drop
+# into `libxml::bindings` for xmlIOParseDTD + xmlHashScan. Build-time deps:
+# libxml2 + pkg-config + clang (bindgen). Test-only; the published `sdef`
+# crate stays pure-Rust.
+libxml = "0.3"

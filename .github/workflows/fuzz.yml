@@ -1,0 +1,84 @@
+name: Fuzz
+
+# Weekly cron + manual dispatch only. Fuzz discovery is best-effort and not
+# deterministic, so we intentionally do not gate PRs on it. Findings are
+# uploaded as workflow artifacts; investigate and reproduce locally with
+# `cargo +nightly fuzz run <target> <reproducer>`.
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration_seconds:
+        description: Per-target fuzz budget (seconds).
+        required: false
+        default: '300'
+  schedule:
+    # Mondays at 11:00 UTC — staggered an hour after the corpus-macos cron
+    # so the two jobs don't share queue contention.
+    - cron: '0 11 * * 1'
+
+concurrency:
+  group: fuzz-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  fuzz:
+    name: Fuzz ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [parse_strict, parse_lenient]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install nightly Rust (cargo-fuzz requires nightly)
+        uses: ./.github/actions/install-rust-toolchain
+        with:
+          toolchain: nightly
+
+      - name: Cache cargo-fuzz binary
+        id: cargo-fuzz-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ~/.cargo/bin/cargo-fuzz
+          key: cargo-fuzz-${{ runner.os }}
+
+      - name: Install cargo-fuzz
+        if: steps.cargo-fuzz-cache.outputs.cache-hit != 'true'
+        run: cargo install cargo-fuzz --locked
+
+      - name: Save cargo-fuzz binary
+        if: steps.cargo-fuzz-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cargo/bin/cargo-fuzz
+          key: cargo-fuzz-${{ runner.os }}
+
+      - name: Seed corpus from tests/fixtures
+        run: |
+          mkdir -p fuzz/corpus/${{ matrix.target }}
+          cp tests/fixtures/*.sdef fuzz/corpus/${{ matrix.target }}/
+
+      - name: Run ${{ matrix.target }}
+        env:
+          DURATION: ${{ github.event.inputs.duration_seconds || '300' }}
+        run: |
+          cargo fuzz run ${{ matrix.target }} -- \
+            -max_total_time="$DURATION" \
+            -timeout=10 \
+            -rss_limit_mb=2048
+
+      - name: Upload crash artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-${{ matrix.target }}-artifacts
+          path: fuzz/artifacts/${{ matrix.target }}/
+          if-no-files-found: ignore
+          retention-days: 30

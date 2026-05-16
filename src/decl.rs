@@ -6,14 +6,14 @@
 //! record. They contrast with [`crate::TypeRef`], which is a *reference* to
 //! such a declaration (or to one of the built-in primitives).
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-use crate::metadata::{AccessGroup, Cocoa, Documentation, Synonym, Xref};
+use crate::metadata::{Access, AccessGroup, Cocoa, Documentation, Synonym, Xref};
 use crate::typeref::TypeRef;
-use crate::yorn::{yorn, yorn_opt};
+use crate::yorn;
 
 /// An `<enumeration>` of named constants.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Enumeration {
     /// Enumeration name (`name="…"`).
@@ -25,42 +25,56 @@ pub struct Enumeration {
     pub code: String,
 
     /// `id="…"` — optional unique identifier.
-    #[serde(rename = "@id", default)]
+    #[serde(rename = "@id", default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 
     /// Optional human description (`description="…"`).
-    #[serde(rename = "@description", default)]
+    #[serde(
+        rename = "@description",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub description: Option<String>,
 
     /// `hidden="yes"` flag, defaults to `false`.
-    #[serde(rename = "@hidden", default, deserialize_with = "yorn")]
+    #[serde(
+        rename = "@hidden",
+        default,
+        deserialize_with = "yorn::de",
+        serialize_with = "yorn::ser",
+        skip_serializing_if = "yorn::is_false"
+    )]
     pub hidden: bool,
 
     /// `inline="N"` — display-compaction hint. Kept as a raw `String` to
     /// preserve the CDATA value (typically a decimal integer); callers may
     /// parse it as needed.
-    #[serde(rename = "@inline", default)]
+    #[serde(rename = "@inline", default, skip_serializing_if = "Option::is_none")]
     pub inline: Option<String>,
 
     /// Optional `<cocoa>` implementation hint.
-    #[serde(rename = "cocoa", default)]
+    #[serde(rename = "cocoa", default, skip_serializing_if = "Option::is_none")]
     pub cocoa: Option<Cocoa>,
 
     /// `<enumerator>` children. At least one is required by the DTD.
-    #[serde(rename = "enumerator", default)]
+    #[serde(rename = "enumerator", default, skip_serializing_if = "Vec::is_empty")]
     pub enumerators: Vec<Enumerator>,
 
     /// Interleaved `<documentation>` children.
-    #[serde(rename = "documentation", default)]
+    #[serde(
+        rename = "documentation",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub documentation: Vec<Documentation>,
 
     /// Interleaved `<xref>` children.
-    #[serde(rename = "xref", default)]
+    #[serde(rename = "xref", default, skip_serializing_if = "Vec::is_empty")]
     pub xrefs: Vec<Xref>,
 }
 
 /// A single `<enumerator>` constant within an [`Enumeration`].
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Enumerator {
     /// Enumerator name (`name="…"`).
@@ -72,29 +86,43 @@ pub struct Enumerator {
     pub code: String,
 
     /// `hidden="yes"` flag, defaults to `false`.
-    #[serde(rename = "@hidden", default, deserialize_with = "yorn")]
+    #[serde(
+        rename = "@hidden",
+        default,
+        deserialize_with = "yorn::de",
+        serialize_with = "yorn::ser",
+        skip_serializing_if = "yorn::is_false"
+    )]
     pub hidden: bool,
 
     /// Optional human description (`description="…"`).
-    #[serde(rename = "@description", default)]
+    #[serde(
+        rename = "@description",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub description: Option<String>,
 
     /// Optional `<cocoa>` implementation hint.
-    #[serde(rename = "cocoa", default)]
+    #[serde(rename = "cocoa", default, skip_serializing_if = "Option::is_none")]
     pub cocoa: Option<Cocoa>,
 
     /// `<synonym>` children.
-    #[serde(rename = "synonym", default)]
+    #[serde(rename = "synonym", default, skip_serializing_if = "Vec::is_empty")]
     pub synonyms: Vec<Synonym>,
 
     /// `<documentation>` children.
-    #[serde(rename = "documentation", default)]
+    #[serde(
+        rename = "documentation",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub documentation: Vec<Documentation>,
 }
 
 /// A `<record-type>` — a structured value type composed of named properties,
 /// distinct from a `<class>` (no behaviour, no identity).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct RecordType {
     /// Record-type name (`name="…"`).
@@ -106,45 +134,59 @@ pub struct RecordType {
     pub code: String,
 
     /// `id="…"` — optional unique identifier.
-    #[serde(rename = "@id", default)]
+    #[serde(rename = "@id", default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 
     /// Optional plural form (`plural="…"`).
-    #[serde(rename = "@plural", default)]
+    #[serde(rename = "@plural", default, skip_serializing_if = "Option::is_none")]
     pub plural: Option<String>,
 
     /// Optional human description (`description="…"`).
-    #[serde(rename = "@description", default)]
+    #[serde(
+        rename = "@description",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub description: Option<String>,
 
     /// `hidden="yes"` flag, defaults to `false`.
-    #[serde(rename = "@hidden", default, deserialize_with = "yorn")]
+    #[serde(
+        rename = "@hidden",
+        default,
+        deserialize_with = "yorn::de",
+        serialize_with = "yorn::ser",
+        skip_serializing_if = "yorn::is_false"
+    )]
     pub hidden: bool,
 
     /// Optional `<cocoa>` implementation hint.
-    #[serde(rename = "cocoa", default)]
+    #[serde(rename = "cocoa", default, skip_serializing_if = "Option::is_none")]
     pub cocoa: Option<Cocoa>,
 
     /// `<synonym>` children.
-    #[serde(rename = "synonym", default)]
+    #[serde(rename = "synonym", default, skip_serializing_if = "Vec::is_empty")]
     pub synonyms: Vec<Synonym>,
 
     /// `<property>` children declaring the fields of the record.
-    #[serde(rename = "property", default)]
+    #[serde(rename = "property", default, skip_serializing_if = "Vec::is_empty")]
     pub properties: Vec<Property>,
 
     /// `<documentation>` children.
-    #[serde(rename = "documentation", default)]
+    #[serde(
+        rename = "documentation",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub documentation: Vec<Documentation>,
 
     /// `<xref>` children.
-    #[serde(rename = "xref", default)]
+    #[serde(rename = "xref", default, skip_serializing_if = "Vec::is_empty")]
     pub xrefs: Vec<Xref>,
 }
 
 /// A `<value-type>` — an opaque scalar type with no accessible properties or
 /// elements, typically backed by a Cocoa class such as `NSColor`.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct ValueType {
     /// Type name (`name="…"`).
@@ -156,35 +198,49 @@ pub struct ValueType {
     pub code: String,
 
     /// `id="…"` — optional unique identifier.
-    #[serde(rename = "@id", default)]
+    #[serde(rename = "@id", default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 
     /// Optional plural form (`plural="…"`).
-    #[serde(rename = "@plural", default)]
+    #[serde(rename = "@plural", default, skip_serializing_if = "Option::is_none")]
     pub plural: Option<String>,
 
     /// Optional human description (`description="…"`).
-    #[serde(rename = "@description", default)]
+    #[serde(
+        rename = "@description",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub description: Option<String>,
 
     /// `hidden="yes"` flag, defaults to `false`.
-    #[serde(rename = "@hidden", default, deserialize_with = "yorn")]
+    #[serde(
+        rename = "@hidden",
+        default,
+        deserialize_with = "yorn::de",
+        serialize_with = "yorn::ser",
+        skip_serializing_if = "yorn::is_false"
+    )]
     pub hidden: bool,
 
     /// Optional `<cocoa>` implementation hint.
-    #[serde(rename = "cocoa", default)]
+    #[serde(rename = "cocoa", default, skip_serializing_if = "Option::is_none")]
     pub cocoa: Option<Cocoa>,
 
     /// `<synonym>` children.
-    #[serde(rename = "synonym", default)]
+    #[serde(rename = "synonym", default, skip_serializing_if = "Vec::is_empty")]
     pub synonyms: Vec<Synonym>,
 
     /// `<documentation>` children.
-    #[serde(rename = "documentation", default)]
+    #[serde(
+        rename = "documentation",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub documentation: Vec<Documentation>,
 
     /// `<xref>` children.
-    #[serde(rename = "xref", default)]
+    #[serde(rename = "xref", default, skip_serializing_if = "Vec::is_empty")]
     pub xrefs: Vec<Xref>,
 }
 
@@ -194,7 +250,7 @@ pub struct ValueType {
 /// Lives here (alongside other declarations) rather than in `class.rs`
 /// because record-type also declares properties; both consumers reach for the
 /// same struct.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Property {
     /// Property name (`name="…"`).
@@ -206,51 +262,74 @@ pub struct Property {
     pub code: String,
 
     /// `id="…"` — optional unique identifier.
-    #[serde(rename = "@id", default)]
+    #[serde(rename = "@id", default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 
     /// Property value type (`type="…"`). Mutually exclusive with `<type>`
     /// child elements in well-formed sdefs.
-    #[serde(rename = "@type", default)]
+    #[serde(rename = "@type", default, skip_serializing_if = "Option::is_none")]
     pub ty: Option<String>,
 
-    /// `access="r|w|rw"` — defaults to `rw` per the man page; kept as
-    /// `Option<String>` so the absent case is distinguishable from the
-    /// explicit `"rw"`.
-    #[serde(rename = "@access", default)]
-    pub access: Option<String>,
+    /// `access="r|w|rw"` — defaults to `rw` per the man page; `None`
+    /// distinguishes the absent attribute from an explicit `"rw"`.
+    #[serde(rename = "@access", default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<Access>,
 
     /// `in-properties="yes|no"` — whether this property appears in a
     /// `properties of …` record. Per the man page the DTD default is `yes`;
     /// `None` here means the attribute was omitted entirely.
-    #[serde(rename = "@in-properties", default, deserialize_with = "yorn_opt")]
+    #[serde(
+        rename = "@in-properties",
+        default,
+        deserialize_with = "yorn::de_opt",
+        serialize_with = "yorn::ser_opt",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub in_properties: Option<bool>,
 
     /// `hidden="yes"` flag, defaults to `false`.
-    #[serde(rename = "@hidden", default, deserialize_with = "yorn")]
+    #[serde(
+        rename = "@hidden",
+        default,
+        deserialize_with = "yorn::de",
+        serialize_with = "yorn::ser",
+        skip_serializing_if = "yorn::is_false"
+    )]
     pub hidden: bool,
 
     /// Optional human description (`description="…"`).
-    #[serde(rename = "@description", default)]
+    #[serde(
+        rename = "@description",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub description: Option<String>,
 
     /// Optional `<cocoa>` implementation hint child.
-    #[serde(rename = "cocoa", default)]
+    #[serde(rename = "cocoa", default, skip_serializing_if = "Option::is_none")]
     pub cocoa: Option<Cocoa>,
 
     /// Zero or more `<access-group>` entitlement children.
-    #[serde(rename = "access-group", default)]
+    #[serde(
+        rename = "access-group",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub access_groups: Vec<AccessGroup>,
 
     /// `<type>` child elements (list/union expressions).
-    #[serde(rename = "type", default)]
+    #[serde(rename = "type", default, skip_serializing_if = "Vec::is_empty")]
     pub types: Vec<TypeRef>,
 
     /// `<synonym>` children.
-    #[serde(rename = "synonym", default)]
+    #[serde(rename = "synonym", default, skip_serializing_if = "Vec::is_empty")]
     pub synonyms: Vec<Synonym>,
 
     /// `<documentation>` children.
-    #[serde(rename = "documentation", default)]
+    #[serde(
+        rename = "documentation",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub documentation: Vec<Documentation>,
 }

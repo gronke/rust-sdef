@@ -8,12 +8,12 @@
 
 use std::fmt;
 
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::decl::Property;
-use crate::metadata::{AccessGroup, Cocoa, Documentation, Synonym, Xref};
+use crate::metadata::{Access, AccessGroup, Cocoa, Documentation, Synonym, Xref};
 use crate::typeref::TypeRef;
-use crate::yorn::yorn;
+use crate::yorn;
 
 /// A `<class>` declares a scriptable object type with properties, elements,
 /// and the verbs it responds to.
@@ -24,7 +24,7 @@ use crate::yorn::yorn;
 /// quick-xml's `overlapped-lists` cargo feature to deserialize each child
 /// directly into its typed `Vec` field regardless of order. The same
 /// applies to [`crate::Suite`] and [`ClassExtension`].
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Class {
     /// Class name (`name="…"`).
@@ -36,71 +36,89 @@ pub struct Class {
     pub code: String,
 
     /// `id="…"` — optional unique identifier.
-    #[serde(rename = "@id", default)]
+    #[serde(rename = "@id", default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 
     /// Optional plural form (`plural="…"`). Defaults to `<name>s` per the
     /// man page when omitted.
-    #[serde(rename = "@plural", default)]
+    #[serde(rename = "@plural", default, skip_serializing_if = "Option::is_none")]
     pub plural: Option<String>,
 
     /// Optional parent class name (`inherits="…"`). The AST stores this as a
     /// string; resolving the parent declaration is the caller's job.
-    #[serde(rename = "@inherits", default)]
+    #[serde(rename = "@inherits", default, skip_serializing_if = "Option::is_none")]
     pub inherits: Option<String>,
 
     /// Optional human description (`description="…"`).
-    #[serde(rename = "@description", default)]
+    #[serde(
+        rename = "@description",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub description: Option<String>,
 
     /// `hidden="yes"` flag, defaults to `false`.
-    #[serde(rename = "@hidden", default, deserialize_with = "yorn")]
+    #[serde(
+        rename = "@hidden",
+        default,
+        deserialize_with = "yorn::de",
+        serialize_with = "yorn::ser",
+        skip_serializing_if = "yorn::is_false"
+    )]
     pub hidden: bool,
 
     /// Optional `<cocoa>` implementation hint child.
-    #[serde(rename = "cocoa", default)]
+    #[serde(rename = "cocoa", default, skip_serializing_if = "Option::is_none")]
     pub cocoa: Option<Cocoa>,
 
     /// Zero or more `<access-group>` entitlement children.
-    #[serde(rename = "access-group", default)]
+    #[serde(
+        rename = "access-group",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub access_groups: Vec<AccessGroup>,
 
     /// `<type>` children. The DTD permits `type*` here even though it's not
     /// strictly part of the AppleScript model; Cocoa Scripting uses it to
     /// give a class a value-type-style coercion target (e.g. `<class
     /// name="rich text">` has `<type type="text"/>`).
-    #[serde(rename = "type", default)]
+    #[serde(rename = "type", default, skip_serializing_if = "Vec::is_empty")]
     pub types: Vec<TypeRef>,
 
     /// `<property>` children, in document order.
-    #[serde(rename = "property", default)]
+    #[serde(rename = "property", default, skip_serializing_if = "Vec::is_empty")]
     pub properties: Vec<Property>,
 
     /// `<element>` children — to-many relationships, in document order.
-    #[serde(rename = "element", default)]
+    #[serde(rename = "element", default, skip_serializing_if = "Vec::is_empty")]
     pub elements: Vec<Element>,
 
     /// `<contents>` children — the implied container. Per the man page only
     /// one is meaningful, but the DTD allows the `<class-contents>` choice
     /// to repeat; we keep a `Vec` to surface malformed input rather than
     /// silently dropping extras.
-    #[serde(rename = "contents", default)]
+    #[serde(rename = "contents", default, skip_serializing_if = "Vec::is_empty")]
     pub contents: Vec<Contents>,
 
     /// `<responds-to>` children declaring which verbs the class handles.
-    #[serde(rename = "responds-to", default)]
+    #[serde(rename = "responds-to", default, skip_serializing_if = "Vec::is_empty")]
     pub responds_to: Vec<RespondsTo>,
 
     /// `<synonym>` children.
-    #[serde(rename = "synonym", default)]
+    #[serde(rename = "synonym", default, skip_serializing_if = "Vec::is_empty")]
     pub synonyms: Vec<Synonym>,
 
     /// `<documentation>` children.
-    #[serde(rename = "documentation", default)]
+    #[serde(
+        rename = "documentation",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub documentation: Vec<Documentation>,
 
     /// `<xref>` children.
-    #[serde(rename = "xref", default)]
+    #[serde(rename = "xref", default, skip_serializing_if = "Vec::is_empty")]
     pub xrefs: Vec<Xref>,
 }
 
@@ -109,7 +127,7 @@ pub struct Class {
 ///
 /// Like [`Class`], relies on quick-xml's `overlapped-lists` feature so that
 /// class-contents children can appear in any order.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct ClassExtension {
     /// `extends="…"` — name of the class being extended (required).
@@ -117,55 +135,73 @@ pub struct ClassExtension {
     pub extends: String,
 
     /// `id="…"` — optional unique identifier.
-    #[serde(rename = "@id", default)]
+    #[serde(rename = "@id", default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 
     /// `title="…"` — display title for the extension (added in OS X 10.10).
-    #[serde(rename = "@title", default)]
+    #[serde(rename = "@title", default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
 
     /// Optional human description (`description="…"`).
-    #[serde(rename = "@description", default)]
+    #[serde(
+        rename = "@description",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub description: Option<String>,
 
     /// `hidden="yes"` flag, defaults to `false`.
-    #[serde(rename = "@hidden", default, deserialize_with = "yorn")]
+    #[serde(
+        rename = "@hidden",
+        default,
+        deserialize_with = "yorn::de",
+        serialize_with = "yorn::ser",
+        skip_serializing_if = "yorn::is_false"
+    )]
     pub hidden: bool,
 
     /// Optional `<cocoa>` implementation hint child.
-    #[serde(rename = "cocoa", default)]
+    #[serde(rename = "cocoa", default, skip_serializing_if = "Option::is_none")]
     pub cocoa: Option<Cocoa>,
 
     /// Zero or more `<access-group>` entitlement children.
-    #[serde(rename = "access-group", default)]
+    #[serde(
+        rename = "access-group",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub access_groups: Vec<AccessGroup>,
 
     /// `<property>` children added by this extension, in document order.
-    #[serde(rename = "property", default)]
+    #[serde(rename = "property", default, skip_serializing_if = "Vec::is_empty")]
     pub properties: Vec<Property>,
 
     /// `<element>` children added by this extension, in document order.
-    #[serde(rename = "element", default)]
+    #[serde(rename = "element", default, skip_serializing_if = "Vec::is_empty")]
     pub elements: Vec<Element>,
 
     /// `<contents>` children added by this extension.
-    #[serde(rename = "contents", default)]
+    #[serde(rename = "contents", default, skip_serializing_if = "Vec::is_empty")]
     pub contents: Vec<Contents>,
 
     /// `<responds-to>` children added by this extension.
-    #[serde(rename = "responds-to", default)]
+    #[serde(rename = "responds-to", default, skip_serializing_if = "Vec::is_empty")]
     pub responds_to: Vec<RespondsTo>,
 
     /// `<synonym>` children.
-    #[serde(rename = "synonym", default)]
+    #[serde(rename = "synonym", default, skip_serializing_if = "Vec::is_empty")]
     pub synonyms: Vec<Synonym>,
 
     /// `<documentation>` children.
-    #[serde(rename = "documentation", default)]
+    #[serde(
+        rename = "documentation",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub documentation: Vec<Documentation>,
 
     /// `<xref>` children.
-    #[serde(rename = "xref", default)]
+    #[serde(rename = "xref", default, skip_serializing_if = "Vec::is_empty")]
     pub xrefs: Vec<Xref>,
 }
 
@@ -174,62 +210,87 @@ pub struct ClassExtension {
 /// Lets AppleScript treat `word 1 of document 1` as shorthand for `word 1
 /// of text of document 1`. Most attributes are optional and default per the
 /// man page: `name="contents"`, `code="pcnt"`.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Contents {
     /// `name="…"` — defaults to `"contents"` per the man page.
-    #[serde(rename = "@name", default)]
+    #[serde(rename = "@name", default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 
     /// `code="…"` — defaults to `"pcnt"` per the man page.
-    #[serde(rename = "@code", default)]
+    #[serde(rename = "@code", default, skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,
 
     /// `type="…"` — value type of the container. Mutually exclusive with
     /// `<type>` children in well-formed sdefs.
-    #[serde(rename = "@type", default)]
+    #[serde(rename = "@type", default, skip_serializing_if = "Option::is_none")]
     pub ty: Option<String>,
 
     /// `access="r|w|rw"` — defaults to `rw` per the man page.
-    #[serde(rename = "@access", default)]
-    pub access: Option<String>,
+    #[serde(rename = "@access", default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<Access>,
 
-    /// `in-properties="yes|no"` — per the man page the DTD default is `yes`.
-    #[serde(rename = "@in-properties", default)]
-    pub in_properties: Option<String>,
+    /// `in-properties="yes|no"` — per the man page the DTD default is `yes`,
+    /// so use `unwrap_or(true)` to apply the default when absent.
+    #[serde(
+        rename = "@in-properties",
+        default,
+        deserialize_with = "yorn::de_opt",
+        serialize_with = "yorn::ser_opt",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub in_properties: Option<bool>,
 
     /// `hidden="yes"` flag, defaults to `false`.
-    #[serde(rename = "@hidden", default, deserialize_with = "yorn")]
+    #[serde(
+        rename = "@hidden",
+        default,
+        deserialize_with = "yorn::de",
+        serialize_with = "yorn::ser",
+        skip_serializing_if = "yorn::is_false"
+    )]
     pub hidden: bool,
 
     /// Optional human description (`description="…"`).
-    #[serde(rename = "@description", default)]
+    #[serde(
+        rename = "@description",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub description: Option<String>,
 
     /// Optional `<cocoa>` implementation hint child.
-    #[serde(rename = "cocoa", default)]
+    #[serde(rename = "cocoa", default, skip_serializing_if = "Option::is_none")]
     pub cocoa: Option<Cocoa>,
 
     /// Zero or more `<access-group>` entitlement children.
-    #[serde(rename = "access-group", default)]
+    #[serde(
+        rename = "access-group",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub access_groups: Vec<AccessGroup>,
 
     /// `<type>` child elements.
-    #[serde(rename = "type", default)]
+    #[serde(rename = "type", default, skip_serializing_if = "Vec::is_empty")]
     pub types: Vec<TypeRef>,
 
     /// `<synonym>` children.
-    #[serde(rename = "synonym", default)]
+    #[serde(rename = "synonym", default, skip_serializing_if = "Vec::is_empty")]
     pub synonyms: Vec<Synonym>,
 
     /// `<documentation>` children.
-    #[serde(rename = "documentation", default)]
+    #[serde(
+        rename = "documentation",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub documentation: Vec<Documentation>,
 }
 
 /// An `<element>` — a to-many relationship from a class to instances of
 /// another class.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Element {
     /// `type="…"` — class name of the contained objects (required).
@@ -237,31 +298,49 @@ pub struct Element {
     pub ty: String,
 
     /// `access="r|w|rw"` — defaults to `rw` per the man page.
-    #[serde(rename = "@access", default)]
-    pub access: Option<String>,
+    #[serde(rename = "@access", default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<Access>,
 
     /// `hidden="yes"` flag, defaults to `false`.
-    #[serde(rename = "@hidden", default, deserialize_with = "yorn")]
+    #[serde(
+        rename = "@hidden",
+        default,
+        deserialize_with = "yorn::de",
+        serialize_with = "yorn::ser",
+        skip_serializing_if = "yorn::is_false"
+    )]
     pub hidden: bool,
 
     /// Optional human description (`description="…"`).
-    #[serde(rename = "@description", default)]
+    #[serde(
+        rename = "@description",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub description: Option<String>,
 
     /// Optional `<cocoa>` implementation hint child.
-    #[serde(rename = "cocoa", default)]
+    #[serde(rename = "cocoa", default, skip_serializing_if = "Option::is_none")]
     pub cocoa: Option<Cocoa>,
 
     /// Zero or more `<access-group>` entitlement children.
-    #[serde(rename = "access-group", default)]
+    #[serde(
+        rename = "access-group",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub access_groups: Vec<AccessGroup>,
 
     /// `<accessor>` children declaring supported access styles.
-    #[serde(rename = "accessor", default)]
+    #[serde(rename = "accessor", default, skip_serializing_if = "Vec::is_empty")]
     pub accessors: Vec<Accessor>,
 
     /// `<documentation>` children.
-    #[serde(rename = "documentation", default)]
+    #[serde(
+        rename = "documentation",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub documentation: Vec<Documentation>,
 }
 
@@ -269,7 +348,7 @@ pub struct Element {
 ///
 /// Used by aete-based dictionaries; Cocoa Scripting derives access styles
 /// from properties and largely ignores explicit `<accessor>` declarations.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Accessor {
     /// `style="…"` — one of the six DTD-declared `accessor-type` values.
@@ -349,9 +428,18 @@ impl<'de> Deserialize<'de> for AccessorStyle {
     }
 }
 
+impl Serialize for AccessorStyle {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
 /// A `<responds-to>` declaration mapping a verb to a class's
 /// implementation.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct RespondsTo {
     /// `command="…"` — the verb name or id this class handles.
@@ -360,25 +448,35 @@ pub struct RespondsTo {
     /// attribute instead. We model `command` as `Option<String>` so legacy
     /// dictionaries deserialize cleanly; consumers should treat
     /// `command.or(name)` as the canonical reference.
-    #[serde(rename = "@command", default)]
+    #[serde(rename = "@command", default, skip_serializing_if = "Option::is_none")]
     pub command: Option<String>,
 
     /// `hidden="yes"` flag, defaults to `false`.
-    #[serde(rename = "@hidden", default, deserialize_with = "yorn")]
+    #[serde(
+        rename = "@hidden",
+        default,
+        deserialize_with = "yorn::de",
+        serialize_with = "yorn::ser",
+        skip_serializing_if = "yorn::is_false"
+    )]
     pub hidden: bool,
 
     /// `name="…"` — pre-OS X 10.5 alias for `command`, still accepted by
     /// the DTD for backward compatibility.
-    #[serde(rename = "@name", default)]
+    #[serde(rename = "@name", default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 
     /// Optional `<cocoa>` implementation hint child (e.g. method selector
     /// for custom verb handlers).
-    #[serde(rename = "cocoa", default)]
+    #[serde(rename = "cocoa", default, skip_serializing_if = "Option::is_none")]
     pub cocoa: Option<Cocoa>,
 
     /// Zero or more `<access-group>` entitlement children.
-    #[serde(rename = "access-group", default)]
+    #[serde(
+        rename = "access-group",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub access_groups: Vec<AccessGroup>,
 }
 

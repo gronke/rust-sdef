@@ -14,15 +14,18 @@ such as `CocoaStandard.sdef`.
 
 ## Status
 
-Full DTD coverage of the macOS 26 `sdef(5)` schema. Element coverage,
-attribute coverage, and per-fixture exercise are CI-enforced via
-[`docs/CONFORMANCE.md`](docs/CONFORMANCE.md) — the conformance dashboard
-regenerated and byte-compared on every PR. Validated end-to-end against
-real-world sdefs from `/Applications/` and
-`/System/Library/ScriptingDefinitions/`. The crate is **not yet published
-to crates.io** — it lives on GitHub and is pinned by `rust-moneymoney` as
-a git dependency while both projects bed in together. See
-[Roadmap](#roadmap).
+Full DTD coverage of the macOS 26 `sdef(5)` schema, including typed
+enums for every closed-enum attribute (`accessor.style`, `Access`,
+`CocoaBooleanValue`). Both lenient and strict parse modes; round-trip
+emission via [`Dictionary::to_xml_string`] with AST-identity property
+tests. Element coverage, attribute coverage, and per-fixture exercise
+are CI-enforced via [`docs/CONFORMANCE.md`](docs/CONFORMANCE.md) — the
+conformance dashboard regenerated and byte-compared on every PR.
+Validated end-to-end against real-world sdefs from `/Applications/` and
+`/System/Library/ScriptingDefinitions/`. The crate is **not yet
+published to crates.io** — it lives on GitHub and is pinned by
+`rust-moneymoney` as a git dependency while both projects bed in
+together.
 
 ## Features
 
@@ -37,9 +40,24 @@ a git dependency while both projects bed in together. See
     unknown XML elements, which matches quick-xml's default behaviour and
     keeps the parser forward-compatible against future Apple additions.
   - `Dictionary::from_str_strict` (and friends) rejects any element name
-    outside the modelled DTD subset, plus any `<xi:include>` directive.
-    Useful for CI gates, tests, and any case where you want loud failures
-    on DTD drift.
+    outside the modelled DTD subset, plus any `<xi:include>` directive,
+    plus any out-of-range value for the eight closed-enum attributes
+    (`accessor.style`, `<…>.access`, `<…>.requires-access`,
+    `cocoa.boolean-value`). Useful for CI gates, tests, and any case
+    where you want loud failures on DTD drift.
+- **Round-trip emission**. `Dictionary::to_xml_string` (and
+  `to_writer` / `to_path`) re-emits a complete sdef document with the
+  XML declaration and DOCTYPE prelude. The round-trip invariant
+  `parse(emit(parse(input))) == parse(input)` is property-tested over
+  every committed fixture in `tests/roundtrip.rs`. Byte-level identity
+  with the original document is *not* guaranteed (attribute order,
+  whitespace, and child interleaving normalise on emit) — AST identity
+  is the load-bearing guarantee.
+- **Typed enums for every closed-enum attribute.** `AccessorStyle`,
+  `Access` (for `@access` and `@requires-access`), and
+  `CocoaBooleanValue` model their DTD value sets directly, each with an
+  `Other(String)` escape hatch for forward compatibility on lenient
+  parsing. Strict mode rejects `Other(_)` at parse time.
 - **DTD-drift detection** baked into the test suite. The
   `tests/dtd_drift.rs` integration test checks two things together on
   every `cargo test`:
@@ -134,6 +152,18 @@ the preferred entry point for the lenient path.
 
 [fromstr]: https://doc.rust-lang.org/std/str/trait.FromStr.html
 
+Round-trip emission via `to_xml_string` (sibling: `to_writer`, `to_path`):
+
+```rust
+use sdef::Dictionary;
+
+let xml = std::fs::read_to_string("./MoneyMoney.sdef")?;
+let dict: Dictionary = xml.parse()?;
+let reemitted = dict.to_xml_string()?;
+// `reemitted.parse::<Dictionary>()? == dict` — AST identity holds.
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
 ## DTD version coverage
 
 The AST models the DTD shipped on **macOS 26.x** (`/System/Library/DTDs/sdef.dtd`,
@@ -158,27 +188,22 @@ sdefs they encounter.
   (matching quick-xml). If you need XInclude resolution, pre-process the
   XML with `xmllint --xinclude` before handing it to this crate.
 - **Partial DTD validation at the Rust layer.** quick-xml does not perform
-  DTD validation, and strict mode's element-name pre-pass is only one of
-  several checks. The full picture: `tests/attribute_conformance.rs` pins
-  attribute names + closed-enum values against the live DTD on macOS, and
-  `tests/dtd_drift.rs` runs `xmllint --dtdvalid` over every committed
-  fixture. Only `accessor.style` is currently surfaced as a typed Rust
-  enum (`AccessorStyle`); other closed-enum attributes (`access`,
-  `requires-access`, `boolean-value`) remain `String` for forward
-  compatibility — see [`docs/CONFORMANCE.md`](docs/CONFORMANCE.md) for
-  the per-attribute matrix.
-- **No serialisation.** The crate only deserialises. Round-trip
-  emission is on the roadmap but blocks on quick-xml-serde quirks around
-  mixed content in `<html>` blocks.
-
-## Roadmap
-
-- [ ] Round-trip `Serialize` derive with property-based equivalence tests.
-- [x] CI matrix: Linux for the parser, macOS for the drift test +
-      attribute-conformance + corpus run. Configured under
-      [`.github/workflows/`](.github/workflows/).
-- [ ] First publish to crates.io. Pre-flight: pin a sensible MSRV, set
-      the `repository` field in `Cargo.toml`, freeze the API surface.
+  DTD validation. Strict mode's pre-pass checks element names plus the
+  eight closed-enum attributes (`accessor.style`, `<…>.access`,
+  `<…>.requires-access`, `cocoa.boolean-value`) — see
+  `tests/attribute_conformance.rs` (against the live DTD via libxml2 on
+  macOS) and `tests/dtd_drift.rs` (`xmllint --dtdvalid` over every
+  committed fixture) for the rest of the validation surface, and
+  [`docs/CONFORMANCE.md`](docs/CONFORMANCE.md) for the per-attribute
+  matrix.
+- **Round-trip emission preserves AST, not bytes.**
+  [`Dictionary::to_xml_string`] re-emits an sdef document that parses back
+  to the same AST (`parse(emit(parse(input))) == parse(input)`), but does
+  not preserve attribute order, whitespace, self-closing-tag style, or
+  document-order interleaving of `<command>`/`<class>`/`<class-extension>`
+  children. `<html>` content stored in `Vec<String>` is byte-stable for
+  plain-text bodies (Apple's shipping sdefs); internal HTML markup may be
+  re-escaped on the way out.
 
 ## References
 

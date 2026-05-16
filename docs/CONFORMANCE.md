@@ -8,7 +8,7 @@ Source DTD: `/System/Library/DTDs/sdef.dtd` (macOS 26.5, sha256 pinned in `tests
 
 - **25/25** DTD elements modelled.
 - **103** DTD-declared attributes modelled (every attribute of every modelled element; verified by `tests/attribute_conformance.rs`).
-- **1/8** closed-enum attributes surfaced as typed Rust enums; the remainder stay as `String` for forward compatibility (see *Known limitations* below).
+- **8/8** closed-enum attributes surfaced as typed Rust enums; the remainder stay as `String` for forward compatibility (see *Known limitations* below).
 - **25/25** elements exercised by ≥1 committed fixture under `tests/fixtures/`.
 
 ## Elements
@@ -22,23 +22,23 @@ One row per DTD element. Columns:
 
 | Element | Required attrs | Other attrs | Typed enums | mini | synthetic | extras |
 |---|---|---|---|---|---|---|
-| `access-group` | `identifier` | `access` | (none) | — | ✅ | ✅ |
+| `access-group` | `identifier` | `access` | `access` | — | ✅ | ✅ |
 | `accessor` | `style` | — | `style` | — | ✅ | ✅ |
 | `class` | `name`, `code` | `id`, `hidden`, `plural`, `inherits`, `description` | (none) | — | ✅ | ✅ |
 | `class-extension` | `extends` | `id`, `hidden`, `title`, `description` | (none) | — | ✅ | — |
-| `cocoa` | — | `name`, `class`, `key`, `method`, `insert-at-beginning`, `boolean-value`, `integer-value`, `string-value` | (none) | — | ✅ | ✅ |
+| `cocoa` | — | `name`, `class`, `key`, `method`, `insert-at-beginning`, `boolean-value`, `integer-value`, `string-value` | `boolean-value` | — | ✅ | ✅ |
 | `command` | `name`, `code` | `id`, `description`, `hidden` | (none) | ✅ | ✅ | ✅ |
-| `contents` | — | `name`, `code`, `hidden`, `type`, `access`, `in-properties`, `description` | (none) | — | ✅ | — |
+| `contents` | — | `name`, `code`, `hidden`, `type`, `access`, `in-properties`, `description` | `access` | — | ✅ | — |
 | `dictionary` | — | `title` | (none) | ✅ | ✅ | ✅ |
-| `direct-parameter` | — | `type`, `optional`, `requires-access`, `description` | (none) | — | ✅ | — |
+| `direct-parameter` | — | `type`, `optional`, `requires-access`, `description` | `requires-access` | — | ✅ | — |
 | `documentation` | — | — | (none) | — | ✅ | ✅ |
-| `element` | `type` | `access`, `hidden`, `description` | (none) | — | ✅ | ✅ |
+| `element` | `type` | `access`, `hidden`, `description` | `access` | — | ✅ | ✅ |
 | `enumeration` | `name`, `code` | `id`, `hidden`, `description`, `inline` | (none) | — | ✅ | ✅ |
 | `enumerator` | `name`, `code` | `hidden`, `description` | (none) | — | ✅ | ✅ |
 | `event` | `name`, `code` | `id`, `description`, `hidden` | (none) | — | ✅ | — |
 | `html` | — | — | (none) | — | ✅ | ✅ |
-| `parameter` | `name`, `code` | `hidden`, `type`, `optional`, `requires-access`, `description` | (none) | — | ✅ | ✅ |
-| `property` | `name`, `code` | `hidden`, `type`, `access`, `in-properties`, `description` | (none) | — | ✅ | ✅ |
+| `parameter` | `name`, `code` | `hidden`, `type`, `optional`, `requires-access`, `description` | `requires-access` | — | ✅ | ✅ |
+| `property` | `name`, `code` | `hidden`, `type`, `access`, `in-properties`, `description` | `access` | — | ✅ | ✅ |
 | `record-type` | `name`, `code` | `id`, `hidden`, `plural`, `description` | (none) | — | ✅ | — |
 | `responds-to` | `command` | `hidden`, `name` | (none) | — | ✅ | ✅ |
 | `result` | — | `type`, `description` | (none) | — | ✅ | ✅ |
@@ -164,14 +164,14 @@ Attributes whose DTD type restricts the value to a fixed set. `Typed at parse ti
 
 | Element . attribute | Allowed values | Typed at parse time |
 |---|---|---|
-| `access-group.access` | `r` \| `w` \| `rw` | ❌ |
+| `access-group.access` | `r` \| `w` \| `rw` | ✅ |
 | `accessor.style` | `index` \| `name` \| `id` \| `range` \| `relative` \| `test` | ✅ |
-| `cocoa.boolean-value` | `YES` \| `NO` | ❌ |
-| `contents.access` | `r` \| `w` \| `rw` | ❌ |
-| `direct-parameter.requires-access` | `r` \| `w` \| `rw` | ❌ |
-| `element.access` | `r` \| `w` \| `rw` | ❌ |
-| `parameter.requires-access` | `r` \| `w` \| `rw` | ❌ |
-| `property.access` | `r` \| `w` \| `rw` | ❌ |
+| `cocoa.boolean-value` | `YES` \| `NO` | ✅ |
+| `contents.access` | `r` \| `w` \| `rw` | ✅ |
+| `direct-parameter.requires-access` | `r` \| `w` \| `rw` | ✅ |
+| `element.access` | `r` \| `w` \| `rw` | ✅ |
+| `parameter.requires-access` | `r` \| `w` \| `rw` | ✅ |
+| `property.access` | `r` \| `w` \| `rw` | ✅ |
 
 ## Known limitations
 

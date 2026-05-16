@@ -81,10 +81,10 @@ pub use command::{Command, CommandResult, DirectParameter, Event, Parameter};
 pub use decl::{Enumeration, Enumerator, Property, RecordType, ValueType};
 pub use dictionary::{Dictionary, Suite};
 pub use error::Error;
-pub use metadata::{AccessGroup, Cocoa, Documentation, Synonym, Xref};
+pub use metadata::{Access, AccessGroup, Cocoa, CocoaBooleanValue, Documentation, Synonym, Xref};
 pub use typeref::TypeRef;
 
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::str::FromStr;
 
@@ -107,6 +107,60 @@ impl Dictionary {
     /// Parse an sdef document from a filesystem path.
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         std::fs::read_to_string(path)?.parse()
+    }
+
+    /// Serialise this dictionary back to a complete sdef XML document
+    /// (XML declaration + DOCTYPE pointing at the system DTD + dictionary
+    /// body).
+    ///
+    /// Round-trip invariant: `parse(emit(parse(input))) == parse(input)`
+    /// (AST-level identity). Byte-level identity with the original document
+    /// is *not* guaranteed — XML has many syntactically distinct forms for
+    /// the same logical content, and quick-xml does not preserve attribute
+    /// order, whitespace, or self-closing-tag style on emit.
+    ///
+    /// The emitted DOCTYPE points at `/System/Library/DTDs/sdef.dtd` via
+    /// the Apple-standard `file://localhost/...` form. Strip or rewrite
+    /// the prelude if you need a different external subset reference.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use sdef::Dictionary;
+    ///
+    /// let xml = std::fs::read_to_string("./Foo.sdef")?;
+    /// let dict: Dictionary = xml.parse()?;
+    /// // Re-emit the dictionary verbatim (after AST normalisation):
+    /// let emitted = dict.to_xml_string()?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn to_xml_string(&self) -> Result<String, Error> {
+        let body = quick_xml::se::to_string(self)?;
+        Ok(format!(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+             <!DOCTYPE dictionary SYSTEM \"file://localhost/System/Library/DTDs/sdef.dtd\">\n\
+             {body}\n"
+        ))
+    }
+
+    /// Serialise this dictionary to any [`std::io::Write`] sink.
+    ///
+    /// Internally buffers the full document as a `String` and writes it
+    /// once — quick-xml's serializer requires [`std::fmt::Write`] rather
+    /// than [`std::io::Write`], so this method exists to bridge the two.
+    /// For very large dictionaries you may prefer to call
+    /// [`Self::to_xml_string`] directly and stage the write yourself.
+    pub fn to_writer<W: Write>(&self, mut writer: W) -> Result<(), Error> {
+        let xml = self.to_xml_string()?;
+        writer.write_all(xml.as_bytes())?;
+        Ok(())
+    }
+
+    /// Serialise this dictionary to a filesystem path, overwriting any
+    /// existing file at that location.
+    pub fn to_path<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
+        std::fs::write(path, self.to_xml_string()?)?;
+        Ok(())
     }
 
     /// Parse an sdef document and reject anything outside the modelled DTD

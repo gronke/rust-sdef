@@ -42,7 +42,16 @@ const FIXTURES: &[(&str, &str)] = &[
 /// surfaced as a typed Rust enum (rather than a raw `String`). Adding a new
 /// entry here requires both an AST change AND a manifest update — the
 /// attribute_conformance test pins the manifest enum list against the DTD.
-const STRONG_TYPED_ENUMS: &[&str] = &["accessor.style"];
+const STRONG_TYPED_ENUMS: &[&str] = &[
+    "access-group.access",
+    "accessor.style",
+    "cocoa.boolean-value",
+    "contents.access",
+    "direct-parameter.requires-access",
+    "element.access",
+    "parameter.requires-access",
+    "property.access",
+];
 
 #[test]
 fn matrix_is_up_to_date() {

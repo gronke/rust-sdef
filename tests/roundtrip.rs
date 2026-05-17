@@ -151,6 +151,72 @@ fn suite_interleaved_children_ast_identity() {
     assert_eq!(ast1, ast2);
 }
 
+/// Emitted output (`to_xml_string`) must validate against the system DTD
+/// via `xmllint --noout --dtdvalid`. This is an *independent* check from
+/// our parse→emit→parse AST-equality round-trip: if our emitter produces
+/// XML that's well-formed but DTD-violating, AST equality won't catch it
+/// because the same parser is used on both sides.
+///
+/// Self-skips on hosts without `/System/Library/DTDs/sdef.dtd` (i.e.
+/// non-macOS CI) and without `xmllint` on the PATH.
+#[test]
+fn emitted_output_validates_against_system_dtd() {
+    use std::path::Path;
+    use std::process::Command;
+
+    const SYSTEM_DTD: &str = "/System/Library/DTDs/sdef.dtd";
+
+    if !Path::new(SYSTEM_DTD).exists() {
+        eprintln!("(System DTD {SYSTEM_DTD} not present; skipping emit-validation test)");
+        return;
+    }
+
+    // Probe for xmllint up front so we can self-skip with one clear message.
+    if Command::new("xmllint").arg("--version").output().is_err() {
+        eprintln!("(xmllint not installed; skipping emit-validation test)");
+        return;
+    }
+
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let target_dir = manifest_dir.join("target");
+    std::fs::create_dir_all(&target_dir).expect("create target/");
+
+    let mut emit_paths: Vec<std::path::PathBuf> = Vec::new();
+    for name in ["mini.sdef", "synthetic.sdef", "extras.sdef"] {
+        let dict: Dictionary = std::fs::read_to_string(format!("tests/fixtures/{name}"))
+            .unwrap_or_else(|e| panic!("read {name}: {e}"))
+            .parse()
+            .unwrap_or_else(|e| panic!("parse {name}: {e}"));
+        let emitted = dict
+            .to_xml_string()
+            .unwrap_or_else(|e| panic!("emit {name}: {e}"));
+        let out = target_dir.join(format!("emit_{name}"));
+        std::fs::write(&out, &emitted).unwrap_or_else(|e| panic!("write {}: {e}", out.display()));
+        emit_paths.push(out);
+    }
+
+    let mut cmd = Command::new("xmllint");
+    cmd.arg("--noout").arg("--dtdvalid").arg(SYSTEM_DTD);
+    for p in &emit_paths {
+        cmd.arg(p);
+    }
+    let output = cmd.output().expect("invoke xmllint");
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        panic!(
+            "xmllint --dtdvalid rejected one or more emitted fixtures:\n{stderr}\n\
+             (this means `Dictionary::to_xml_string` produced DTD-invalid output \
+             for at least one fixture under tests/fixtures/)"
+        );
+    }
+
+    // Best-effort cleanup; leaving the files behind on failure is the more
+    // useful debugging affordance.
+    for p in &emit_paths {
+        let _ = std::fs::remove_file(p);
+    }
+}
+
 /// Typed `Access` and `CocoaBooleanValue` enums on emitted XML must use
 /// the canonical DTD spellings.
 #[test]

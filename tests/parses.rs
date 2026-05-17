@@ -11,7 +11,7 @@ mod common;
 
 use std::path::PathBuf;
 
-use sdef::{Access, AccessorStyle, Dictionary};
+use sdef::{Access, AccessorStyle, Class, Dictionary, Enumeration, Suite};
 // Bring FromStr into scope so tests can use `Dictionary::from_str` directly
 // alongside the more-idiomatic `.parse::<Dictionary>()`.
 #[allow(unused_imports)]
@@ -871,6 +871,126 @@ fn corpus_smoke() {
             "{} of {} sdef file(s) in corpus failed strict parsing",
             failures.len(),
             count
+        );
+    }
+}
+
+// ============================================================================
+// API-surface coverage — every public parsing/emission entry point exercised
+// over a committed fixture. Catches regressions where a refactor breaks
+// one of the less-used entry points (e.g., `to_writer`) without anyone
+// noticing.
+// ============================================================================
+
+const ALL_FIXTURES: &[&str] = &["mini.sdef", "synthetic.sdef", "extras.sdef"];
+
+#[test]
+fn from_reader_parses_every_fixture() {
+    for name in ALL_FIXTURES {
+        let file = std::fs::File::open(fixture(name)).expect(name);
+        Dictionary::from_reader(file).unwrap_or_else(|e| panic!("from_reader {name}: {e}"));
+    }
+}
+
+#[test]
+fn from_reader_strict_parses_every_fixture() {
+    for name in ALL_FIXTURES {
+        let file = std::fs::File::open(fixture(name)).expect(name);
+        Dictionary::from_reader_strict(file)
+            .unwrap_or_else(|e| panic!("from_reader_strict {name}: {e}"));
+    }
+}
+
+#[test]
+fn to_writer_emits_a_complete_document() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parse");
+    let mut buf: Vec<u8> = Vec::new();
+    dict.to_writer(&mut buf).expect("write");
+    let written = String::from_utf8(buf).expect("utf-8");
+    assert!(
+        written.starts_with("<?xml"),
+        "to_writer output must start with the XML prelude"
+    );
+    assert!(
+        written.contains("<!DOCTYPE dictionary"),
+        "to_writer output must include the DOCTYPE prelude"
+    );
+    let reparsed: Dictionary = written.parse().expect("reparse to_writer output");
+    assert_eq!(dict, reparsed, "to_writer output must round-trip");
+}
+
+#[test]
+fn to_path_writes_and_reparses() {
+    let dict = Dictionary::from_path(fixture("mini.sdef")).expect("parse");
+
+    // tempfile is not a dev-dependency; use a deterministic path under the
+    // cargo target dir.
+    let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target/test_to_path_writes_and_reparses.sdef");
+    if let Some(parent) = tmp.parent() {
+        std::fs::create_dir_all(parent).expect("create target/");
+    }
+    let _ = std::fs::remove_file(&tmp);
+
+    dict.to_path(&tmp).expect("to_path write");
+    let reparsed = Dictionary::from_path(&tmp).expect("re-read");
+    assert_eq!(dict, reparsed);
+
+    let _ = std::fs::remove_file(&tmp);
+}
+
+#[test]
+fn dictionary_class_lookup_helper() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parse");
+    let cls: &Class = dict.class("shape").expect("class `shape` must exist");
+    assert_eq!(cls.code, "SYsh");
+    assert!(dict.class("nope-not-a-class").is_none());
+}
+
+#[test]
+fn dictionary_suite_lookup_helper() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parse");
+    let suite: &Suite = dict
+        .suite("Synthetic Suite")
+        .expect("suite `Synthetic Suite` must exist");
+    assert_eq!(suite.code, "SYNT");
+    assert!(dict.suite("nope-not-a-suite").is_none());
+}
+
+#[test]
+fn dictionary_enumeration_lookup_helper() {
+    let dict = Dictionary::from_path(fixture("synthetic.sdef")).expect("parse");
+    let en: &Enumeration = dict
+        .enumeration("export format")
+        .expect("enumeration `export format` must exist");
+    assert_eq!(en.code, "SYfm");
+    assert!(dict.enumeration("nope-not-an-enum").is_none());
+}
+
+// ============================================================================
+// Strict / serde-pass agreement
+// ============================================================================
+
+/// The strict-mode pre-pass (`strict::validate_strict`) and the serde
+/// deserialization pass must agree on every document the crate considers
+/// well-formed. If they could disagree, an adversarial input could pass
+/// one and fail the other — concretely, lenient parsing might admit a
+/// document that strict mode's pre-pass also accepts but the second
+/// (serde) call then rejects, producing user-visible inconsistency.
+///
+/// We pin agreement over every committed fixture: both modes must succeed
+/// and produce AST-identical `Dictionary` values.
+#[test]
+fn strict_prepass_and_serde_pass_agree_on_all_fixtures() {
+    for name in ALL_FIXTURES {
+        let xml = std::fs::read_to_string(fixture(name)).expect(name);
+        let lenient =
+            Dictionary::from_str(&xml).unwrap_or_else(|e| panic!("lenient parse of {name}: {e}"));
+        let strict = Dictionary::from_str_strict(&xml)
+            .unwrap_or_else(|e| panic!("strict parse of {name}: {e}"));
+        assert_eq!(
+            lenient, strict,
+            "lenient and strict parses must produce AST-identical Dictionary for {name}"
         );
     }
 }

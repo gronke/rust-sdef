@@ -17,8 +17,18 @@
 //! 3. External-entity declarations inside the DOCTYPE are **never**
 //!    auto-fetched. Even when referenced from body content (the classic
 //!    XXE vector), the referenced URL/path is not opened.
-//! 4. Internal-entity expansion is **bounded**. A billion-laughs-style
-//!    document does not blow up memory or take exponential time to parse.
+//! 4. Internal-entity expansion is **bounded** — in element text and in
+//!    attribute values. Billion-laughs-style documents do not blow up
+//!    memory or take exponential time.
+//! 5. Parameter entities (DTD subset `%pe;`) with an external SYSTEM
+//!    target are not auto-fetched.
+//! 6. The strict pre-pass keys on the literal `xi:` element-name prefix,
+//!    not on the resolved XInclude namespace URI. Redefining `xmlns:xi`
+//!    to a different URI does not bypass strict-mode rejection.
+//! 7. Recursive internal entities (`A → B → A`) do not hang the parser.
+//! 8. A megabyte-scale single attribute value parses in linear memory
+//!    without timeout, pinning the "memory bounded in input size"
+//!    invariant.
 //!
 //! These tests describe the *contract*, not the *implementation*. Any of
 //! "parse errors gracefully" or "parse succeeds with the entity dropped"
@@ -253,5 +263,207 @@ fn internal_entity_expansion_is_bounded() {
             // Acceptable: quick-xml refused to resolve the custom entities.
         }
         Err(other) => panic!("unexpected error variant: {other:?}"),
+    }
+}
+
+/// Same billion-laughs structure as the test above, but the entity is
+/// referenced from element text content (`<html>`) rather than from an
+/// attribute value. Pins the bound in both substitution sites — an
+/// implementation that protects attribute values but not text bodies
+/// would still be exploitable.
+#[test]
+fn internal_entity_expansion_in_element_text_is_bounded() {
+    let xml = r#"<?xml version="1.0"?>
+<!DOCTYPE dictionary [
+    <!ENTITY lol "lol">
+    <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
+    <!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">
+    <!ENTITY lol4 "&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;">
+]>
+<dictionary>
+    <suite name="probe" code="SUIT">
+        <documentation>
+            <html>&lol4;</html>
+        </documentation>
+        <command name="c" code="SUITcmd1"/>
+    </suite>
+</dictionary>"#;
+
+    match xml.parse::<Dictionary>() {
+        Ok(dict) => {
+            let html_total: usize = dict.suites[0]
+                .documentation
+                .iter()
+                .flat_map(|d| d.html.iter())
+                .map(String::len)
+                .sum();
+            assert!(
+                html_total < 1024,
+                "billion-laughs in element text expanded to {html_total} chars"
+            );
+        }
+        Err(Error::Xml(_)) => {
+            // Acceptable: quick-xml refused to resolve the custom entities.
+        }
+        Err(other) => panic!("unexpected error variant: {other:?}"),
+    }
+}
+
+// ============================================================================
+// Parameter entities
+// ============================================================================
+
+/// A DTD internal subset declaring a parameter entity (`%pe;`) whose SYSTEM
+/// target is a non-existent path. Parsing must either reject the document
+/// or complete without touching the SYSTEM path; if the parser tried to
+/// materialise the parameter entity, parsing would fail with an I/O error
+/// rather than the XML or success outcomes we accept here.
+#[test]
+fn parameter_entity_in_dtd_subset_is_safe() {
+    let xml = r#"<?xml version="1.0"?>
+<!DOCTYPE dictionary [
+    <!ENTITY % pe SYSTEM "/this/path/intentionally/does/not/exist">
+    %pe;
+]>
+<dictionary>
+    <suite name="probe" code="SUIT">
+        <command name="c" code="SUITcmd1"/>
+    </suite>
+</dictionary>"#;
+
+    match xml.parse::<Dictionary>() {
+        Ok(dict) => {
+            assert_eq!(dict.suites[0].commands[0].name, "c");
+        }
+        Err(Error::Xml(_)) => {
+            // Acceptable: quick-xml refused the parameter-entity construct.
+        }
+        Err(other) => panic!(
+            "expected Ok or Error::Xml; got {other:?} \
+             — an I/O error here would indicate the SYSTEM path was opened"
+        ),
+    }
+}
+
+// ============================================================================
+// Namespace-prefix rejection (strict mode pre-pass)
+// ============================================================================
+
+/// Strict mode's pre-pass identifies XInclude by the literal `xi:` element
+/// prefix, not by resolving `xmlns:xi` against the W3C XInclude URI. A
+/// malicious sdef might try to dodge rejection by redefining the `xi`
+/// prefix to a non-XInclude namespace URI; we pin that this does *not*
+/// bypass the check.
+#[test]
+fn xmlns_xi_redefinition_does_not_bypass_strict() {
+    let xml = r#"<?xml version="1.0"?>
+        <dictionary xmlns:xi="http://example.invalid/not-real-xinclude">
+            <suite name="probe" code="SUIT">
+                <xi:include href="/etc/passwd"/>
+                <command name="c" code="SUITcmd1"/>
+            </suite>
+        </dictionary>"#;
+
+    let err = Dictionary::from_str_strict(xml)
+        .expect_err("strict mode must reject xi: prefix regardless of declared namespace URI");
+    assert!(
+        matches!(err, Error::XIncludeUnsupported),
+        "expected Error::XIncludeUnsupported, got {err:?}"
+    );
+}
+
+// ============================================================================
+// Recursive internal entities
+// ============================================================================
+
+/// `<!ENTITY a "&b;"><!ENTITY b "&a;">` creates a cycle that a naive
+/// substitution engine would expand forever. Parsing must terminate —
+/// either by rejecting the cycle or by leaving the references unresolved.
+/// The wall-clock guard is generous (we just don't want this test to hang
+/// the suite); a vulnerable parser would never return.
+#[test]
+fn recursive_internal_entity_does_not_hang() {
+    use std::sync::mpsc;
+    use std::thread;
+    use std::time::Duration;
+
+    let xml = r#"<?xml version="1.0"?>
+<!DOCTYPE dictionary [
+    <!ENTITY a "&b;">
+    <!ENTITY b "&a;">
+]>
+<dictionary>
+    <suite name="x&a;y" code="SUIT">
+        <command name="c" code="SUITcmd1"/>
+    </suite>
+</dictionary>"#;
+
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        let _ = tx.send(xml.parse::<Dictionary>().map(|_| ()).map_err(|_| ()));
+    });
+
+    match rx.recv_timeout(Duration::from_secs(5)) {
+        Ok(_) => { /* terminated within budget; either outcome is fine */ }
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            panic!("recursive entity caused parse to hang (>5s)");
+        }
+        Err(mpsc::RecvTimeoutError::Disconnected) => {
+            panic!("parser thread panicked on recursive entity");
+        }
+    }
+}
+
+// ============================================================================
+// Megabyte-scale attribute value (memory bounded in input size)
+// ============================================================================
+
+/// A single attribute value sized at one mebibyte must parse without
+/// exploding memory or wall-clock. The contract being pinned is
+/// "memory consumption is linear in input size" — a quadratic-time or
+/// exponential-memory parser would either hang or OOM here.
+///
+/// We accept either Ok with the verbatim 1 MiB string in the AST, or a
+/// graceful XML-side error. The unacceptable outcome is hanging the test
+/// suite or panicking with an allocation failure.
+#[test]
+fn megabyte_single_attribute_value_parses_in_linear_memory() {
+    use std::sync::mpsc;
+    use std::thread;
+    use std::time::Duration;
+
+    let mib = "a".repeat(1024 * 1024);
+    let xml = format!(
+        r#"<?xml version="1.0"?>
+        <dictionary title="{mib}">
+            <suite name="probe" code="SUIT">
+                <command name="c" code="SUITcmd1"/>
+            </suite>
+        </dictionary>"#
+    );
+
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        let _ = tx.send(xml.parse::<Dictionary>().map(|d| {
+            // Confirm the verbatim 1 MiB string survived if Ok.
+            d.title.as_ref().map(|t| t.len()).unwrap_or(0)
+        }));
+    });
+
+    match rx.recv_timeout(Duration::from_secs(10)) {
+        Ok(Ok(len)) => {
+            assert_eq!(
+                len,
+                1024 * 1024,
+                "1 MiB attribute value must round-trip verbatim through the AST"
+            );
+        }
+        Ok(Err(_)) => { /* parse error is also acceptable */ }
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            panic!("1 MiB attribute caused parse to hang (>10s)");
+        }
+        Err(mpsc::RecvTimeoutError::Disconnected) => {
+            panic!("parser thread panicked on 1 MiB attribute");
+        }
     }
 }

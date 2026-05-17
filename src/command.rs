@@ -72,17 +72,22 @@ pub struct Command {
     )]
     pub documentation: Vec<Documentation>,
 
-    /// `<parameter>` children, in document order.
-    #[serde(rename = "parameter", default, skip_serializing_if = "Vec::is_empty")]
-    pub parameters: Vec<Parameter>,
-
     /// Optional `<direct-parameter>` (the un-named first argument).
+    ///
+    /// Declared before [`Self::parameters`] to match the DTD content model:
+    /// `((direct-parameter , (parameter | documentation)*) | …)`. Emission
+    /// order matters — `xmllint --dtdvalid` rejects documents that emit
+    /// `<parameter>` before `<direct-parameter>`.
     #[serde(
         rename = "direct-parameter",
         default,
         skip_serializing_if = "Option::is_none"
     )]
     pub direct_parameter: Option<DirectParameter>,
+
+    /// `<parameter>` children, in document order.
+    #[serde(rename = "parameter", default, skip_serializing_if = "Vec::is_empty")]
+    pub parameters: Vec<Parameter>,
 
     /// Optional `<result>` element describing the command's return value.
     #[serde(rename = "result", default, skip_serializing_if = "Option::is_none")]
@@ -148,17 +153,20 @@ pub struct Event {
     )]
     pub documentation: Vec<Documentation>,
 
-    /// `<parameter>` children.
-    #[serde(rename = "parameter", default, skip_serializing_if = "Vec::is_empty")]
-    pub parameters: Vec<Parameter>,
-
     /// Optional `<direct-parameter>`.
+    ///
+    /// Declared before [`Self::parameters`] to match the DTD content model;
+    /// see the corresponding field on [`Command`] for the full rationale.
     #[serde(
         rename = "direct-parameter",
         default,
         skip_serializing_if = "Option::is_none"
     )]
     pub direct_parameter: Option<DirectParameter>,
+
+    /// `<parameter>` children.
+    #[serde(rename = "parameter", default, skip_serializing_if = "Vec::is_empty")]
+    pub parameters: Vec<Parameter>,
 
     /// Optional `<result>`.
     #[serde(rename = "result", default, skip_serializing_if = "Option::is_none")]

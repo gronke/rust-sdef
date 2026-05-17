@@ -15,7 +15,7 @@ use crate::metadata::{AccessGroup, Cocoa, Documentation};
 use crate::yorn;
 
 /// The root `<dictionary>` element of an sdef document.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename = "dictionary")]
 #[non_exhaustive]
 pub struct Dictionary {
@@ -49,7 +49,7 @@ pub struct Dictionary {
 /// (e.g. `CocoaStandard.sdef` alternates commands and enumerations). We
 /// rely on quick-xml's `overlapped-lists` cargo feature to deserialize
 /// each child directly into its typed `Vec` field regardless of order.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Suite {
     /// Suite name (`name="…"`).

@@ -1,16 +1,20 @@
 [package]
 name = "sdef"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.85"
 description = "Typed parser for Apple .sdef (scripting definition) XML files."
 authors = ["Stefan Grönke <stefan@gronke.net>"]
 homepage = "https://github.com/gronke/rust-sdef"
+repository = "https://github.com/gronke/rust-sdef"
 license = "MIT"
 keywords = ["applescript", "sdef", "macos", "parser", "xml"]
 categories = ["parser-implementations", "os::macos-apis"]
-# repository = "https://github.com/<owner>/rust-sdef"   # set when published
 readme = "README.md"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 quick-xml = { version = "0.40", features = ["serialize", "overlapped-lists"] }

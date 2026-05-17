@@ -187,6 +187,39 @@ jobs:
           path: target
           key: cargo-target-${{ runner.os }}-doc-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
 
+  msrv:
+    name: MSRV (1.85)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install libxml2 dev headers
+        # Required by the `libxml` dev-dep used in tests/common/mod.rs.
+        run: sudo apt-get update && sudo apt-get install -y libxml2-dev pkg-config
+
+      - name: Install Rust 1.85 toolchain
+        uses: ./.github/actions/install-rust-toolchain
+        with:
+          toolchain: "1.85"
+
+      - name: Restore cargo registry & git
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-deps-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-deps-
+
+      - name: Build with MSRV toolchain
+        # Library + integration tests + examples — the published surface
+        # area. Doc tests run under stable in the `test` job above; running
+        # them under MSRV would re-do the same work.
+        run: cargo build --all-targets --all-features
+
+      - name: Run unit tests with MSRV toolchain
+        run: cargo test --lib
+
   audit:
     name: Security Audit
     runs-on: ubuntu-latest

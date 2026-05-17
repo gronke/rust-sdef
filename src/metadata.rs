@@ -12,7 +12,9 @@
 //! sandbox entitlements, or human-readable annotations rather than
 //! scripting terminology.
 
+use std::convert::Infallible;
 use std::fmt;
+use std::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -26,7 +28,7 @@ use crate::yorn;
 /// [`Access::Other`] for lenient mode; the variant list is kept in
 /// lock-step with the DTD via the `attribute_conformance` integration
 /// test.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Access {
     /// `access="r"` — read-only.
@@ -56,6 +58,23 @@ impl Access {
 impl fmt::Display for Access {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
+    }
+}
+
+impl FromStr for Access {
+    type Err = Infallible;
+
+    /// Infallible: unknown values map to [`Access::Other`], matching the
+    /// lenient-deserialize behaviour. The strict-mode parsing path
+    /// ([`crate::Dictionary::from_str_strict`]) is the place to reject
+    /// out-of-range values at document level.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "r" => Access::Read,
+            "w" => Access::Write,
+            "rw" => Access::ReadWrite,
+            _ => Access::Other(s.to_owned()),
+        })
     }
 }
 
@@ -89,7 +108,7 @@ impl Serialize for Access {
 /// entity used by `@hidden`, `@optional`, and friends. Lenient parsing
 /// preserves any unrecognised value via [`CocoaBooleanValue::Other`];
 /// strict mode rejects unknown values.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum CocoaBooleanValue {
     /// `boolean-value="YES"`.
@@ -115,6 +134,21 @@ impl CocoaBooleanValue {
 impl fmt::Display for CocoaBooleanValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
+    }
+}
+
+impl FromStr for CocoaBooleanValue {
+    type Err = Infallible;
+
+    /// Infallible: unknown values map to [`CocoaBooleanValue::Other`].
+    /// Strict-mode parsing rejects values outside `{YES, NO}` at the
+    /// document level via [`crate::Dictionary::from_str_strict`].
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "YES" => CocoaBooleanValue::Yes,
+            "NO" => CocoaBooleanValue::No,
+            _ => CocoaBooleanValue::Other(s.to_owned()),
+        })
     }
 }
 
@@ -148,7 +182,7 @@ impl Serialize for CocoaBooleanValue {
 /// when omitted, Cocoa Scripting derives defaults from the surrounding term
 /// (camel-cased names, pluralised element keys, etc.). See `man sdef` for
 /// the full rules.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Cocoa {
     /// `name="…"` — legacy scriptSuite-compatibility attribute carried on
@@ -219,7 +253,7 @@ pub struct Cocoa {
 /// Restricts which sandboxed apps may invoke this command (or access this
 /// property/element) by matching the requesting app's identifier against
 /// `identifier`. The wildcard `"*"` matches any caller.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct AccessGroup {
     /// `identifier="…"` — reverse-DNS-style sandbox identifier, or `"*"`
@@ -242,7 +276,7 @@ pub struct AccessGroup {
 /// without losing the canonical mapping. At least one of `name`/`code` is
 /// required by the DTD; we treat both as optional here and let downstream
 /// validation enforce that.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Synonym {
     /// `name="…"` — alternate scripting term.
@@ -280,7 +314,7 @@ pub struct Synonym {
 /// `<parameter>`/`<direct-parameter>`/`<result>` (since OS X 10.10). Each
 /// block holds one or more `<html>` snippets — escaped HTML text since
 /// OS X 10.5, raw text in earlier releases.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Documentation {
     /// `<html>` text snippets. Each entry is the inner text of one `<html>`
@@ -296,7 +330,7 @@ pub struct Documentation {
 /// Documentation-only pointer to another scriptability element by name or
 /// id. No semantic effect on scripting behaviour; consumed by dictionary
 /// browsers.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Xref {
     /// `target="…"` — name or id of the referenced element.

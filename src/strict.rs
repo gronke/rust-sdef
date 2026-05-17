@@ -10,10 +10,10 @@
 //!
 //! The list of accepted element names is the complete set defined in
 //! `/System/Library/DTDs/sdef.dtd` as of the macOS release this crate was
-//! modelled against. The hash-pinned drift test in commit 6's
-//! `tests/dtd_drift.rs` checks the live system DTD against that snapshot and
-//! fails when Apple makes additions; that's the signal to update the list
-//! below (and the rest of the AST) in lock-step.
+//! modelled against. The hash-pinned drift test in `tests/dtd_drift.rs`
+//! checks the live system DTD against that snapshot and fails when Apple
+//! makes additions; that's the signal to update the list below (and the
+//! rest of the AST) in lock-step.
 //!
 //! Strict mode also rejects unknown values for the eight closed-enum
 //! attributes (`accessor.style`, `<…>.access`, `<…>.requires-access`,
@@ -36,9 +36,8 @@ use crate::Error;
 ///
 /// Must contain exactly the element types modelled by the crate. Adding or
 /// removing an entry without a corresponding AST change is a load-bearing
-/// mistake — the `strict_mode_known_element_count_is_stable` integration
-/// test in `tests/parses.rs` pins the length so the change is forced
-/// through review.
+/// mistake — the `known_elements_count_matches_modeled_dtd` unit test
+/// below pins the length so the change is forced through review.
 pub(crate) const KNOWN_ELEMENTS: &[&str] = &[
     "access-group",
     "accessor",

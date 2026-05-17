@@ -22,10 +22,16 @@ tests. Element coverage, attribute coverage, and per-fixture exercise
 are CI-enforced via [`docs/CONFORMANCE.md`](docs/CONFORMANCE.md) — the
 conformance dashboard regenerated and byte-compared on every PR.
 Validated end-to-end against real-world sdefs from `/Applications/` and
-`/System/Library/ScriptingDefinitions/`. The crate is **not yet
-published to crates.io** — it lives on GitHub and is pinned by
-`rust-moneymoney` as a git dependency while both projects bed in
-together.
+`/System/Library/ScriptingDefinitions/`.
+
+## Installation
+
+```toml
+[dependencies]
+sdef = "0.3"
+```
+
+Full API documentation: <https://docs.rs/sdef>.
 
 ## Features
 

@@ -6,7 +6,9 @@
 //! [`crate::Property`] declarations live in [`crate::decl`] because
 //! `<record-type>` shares the same property concept.
 
+use std::convert::Infallible;
 use std::fmt;
+use std::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -24,7 +26,7 @@ use crate::yorn;
 /// quick-xml's `overlapped-lists` cargo feature to deserialize each child
 /// directly into its typed `Vec` field regardless of order. The same
 /// applies to [`crate::Suite`] and [`ClassExtension`].
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Class {
     /// Class name (`name="…"`).
@@ -127,7 +129,7 @@ pub struct Class {
 ///
 /// Like [`Class`], relies on quick-xml's `overlapped-lists` feature so that
 /// class-contents children can appear in any order.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct ClassExtension {
     /// `extends="…"` — name of the class being extended (required).
@@ -210,7 +212,7 @@ pub struct ClassExtension {
 /// Lets AppleScript treat `word 1 of document 1` as shorthand for `word 1
 /// of text of document 1`. Most attributes are optional and default per the
 /// man page: `name="contents"`, `code="pcnt"`.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Contents {
     /// `name="…"` — defaults to `"contents"` per the man page.
@@ -290,7 +292,7 @@ pub struct Contents {
 
 /// An `<element>` — a to-many relationship from a class to instances of
 /// another class.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Element {
     /// `type="…"` — class name of the contained objects (required).
@@ -348,7 +350,7 @@ pub struct Element {
 ///
 /// Used by aete-based dictionaries; Cocoa Scripting derives access styles
 /// from properties and largely ignores explicit `<accessor>` declarations.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Accessor {
     /// `style="…"` — one of the six DTD-declared `accessor-type` values.
@@ -368,7 +370,7 @@ pub struct Accessor {
 /// Unknown values deserialize to [`AccessorStyle::Other`] for lenient mode;
 /// the variant list is kept in lock-step with the DTD via the
 /// `attribute_conformance` integration test.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum AccessorStyle {
     /// `style="index"` — by 1-based ordinal.
@@ -410,6 +412,25 @@ impl fmt::Display for AccessorStyle {
     }
 }
 
+impl FromStr for AccessorStyle {
+    type Err = Infallible;
+
+    /// Infallible: unknown values map to [`AccessorStyle::Other`].
+    /// Strict-mode parsing rejects out-of-range styles at the document
+    /// level via [`crate::Dictionary::from_str_strict`].
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "index" => AccessorStyle::Index,
+            "name" => AccessorStyle::Name,
+            "id" => AccessorStyle::Id,
+            "range" => AccessorStyle::Range,
+            "relative" => AccessorStyle::Relative,
+            "test" => AccessorStyle::Test,
+            _ => AccessorStyle::Other(s.to_owned()),
+        })
+    }
+}
+
 impl<'de> Deserialize<'de> for AccessorStyle {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -439,7 +460,7 @@ impl Serialize for AccessorStyle {
 
 /// A `<responds-to>` declaration mapping a verb to a class's
 /// implementation.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct RespondsTo {
     /// `command="…"` — the verb name or id this class handles.

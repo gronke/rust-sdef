@@ -13,7 +13,7 @@ use crate::typeref::TypeRef;
 use crate::yorn;
 
 /// An `<enumeration>` of named constants.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Enumeration {
     /// Enumeration name (`name="…"`).
@@ -74,7 +74,7 @@ pub struct Enumeration {
 }
 
 /// A single `<enumerator>` constant within an [`Enumeration`].
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Enumerator {
     /// Enumerator name (`name="…"`).
@@ -122,7 +122,7 @@ pub struct Enumerator {
 
 /// A `<record-type>` — a structured value type composed of named properties,
 /// distinct from a `<class>` (no behaviour, no identity).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct RecordType {
     /// Record-type name (`name="…"`).
@@ -186,7 +186,7 @@ pub struct RecordType {
 
 /// A `<value-type>` — an opaque scalar type with no accessible properties or
 /// elements, typically backed by a Cocoa class such as `NSColor`.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct ValueType {
     /// Type name (`name="…"`).
@@ -250,7 +250,7 @@ pub struct ValueType {
 /// Lives here (alongside other declarations) rather than in `class.rs`
 /// because record-type also declares properties; both consumers reach for the
 /// same struct.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Property {
     /// Property name (`name="…"`).

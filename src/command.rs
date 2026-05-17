@@ -14,7 +14,7 @@ use crate::yorn;
 
 /// A `<command>` — a verb the application supports via Apple Events,
 /// invoked from a script.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Command {
     /// Human-readable command name (`name="…"`), e.g. `"export transactions"`.
@@ -104,7 +104,7 @@ pub struct Command {
 /// Structurally identical to [`Command`] aside from the absence of
 /// `<access-group>` children: events are inbound notifications, so the
 /// caller-side entitlement model doesn't apply.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Event {
     /// Human-readable event name (`name="…"`).
@@ -178,7 +178,7 @@ pub struct Event {
 }
 
 /// A `<parameter>` of a `<command>` or `<event>`.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Parameter {
     /// Human-readable parameter name (`name="…"`), e.g. `"from date"`.
@@ -256,7 +256,7 @@ pub struct Parameter {
 ///
 /// Carries the same attributes as a regular parameter except for `name` —
 /// direct parameters are positional in AppleScript syntax.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct DirectParameter {
     /// Value type (`type="…"`).
@@ -317,7 +317,7 @@ pub struct DirectParameter {
 ///
 /// Named `CommandResult` to avoid clashing with the prelude's `Result` while
 /// staying readable in API surface (versus the earlier `Result_`).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct CommandResult {
     /// Result value type (`type="…"`).

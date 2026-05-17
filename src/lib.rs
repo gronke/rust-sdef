@@ -64,6 +64,7 @@
 //! [sdef-man]: https://keith.github.io/xcode-man-pages/sdef.5.html
 //! [README]: https://github.com/gronke/rust-sdef#readme
 
+#![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
 mod class;

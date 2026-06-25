@@ -44,7 +44,7 @@ jobs:
 
       - name: Cache cargo-fuzz binary
         id: cargo-fuzz-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cargo/bin/cargo-fuzz
           key: cargo-fuzz-${{ runner.os }}
@@ -59,7 +59,7 @@ jobs:
 
       - name: Save cargo-fuzz binary
         if: steps.cargo-fuzz-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: ~/.cargo/bin/cargo-fuzz
           key: cargo-fuzz-${{ runner.os }}

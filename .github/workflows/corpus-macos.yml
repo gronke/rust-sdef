@@ -61,7 +61,7 @@ jobs:
       # vice-versa. Registry contents are platform-independent (crates.io
       # metadata + .crate downloads + git checkouts of git-deps).
       - name: Restore cargo registry & git
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.cargo/registry
@@ -72,7 +72,7 @@ jobs:
       # target/ is genuinely platform-specific (compiled artifacts by
       # target triple) so this key stays scoped by runner.os.
       - name: Restore target/
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: target
           key: cargo-target-${{ runner.os }}-corpus-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
@@ -108,7 +108,7 @@ jobs:
           retention-days: 30
 
       - name: Save cargo registry & git
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             ~/.cargo/registry
@@ -116,7 +116,7 @@ jobs:
           key: cargo-deps-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Save target/
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: target
           key: cargo-target-${{ runner.os }}-corpus-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}

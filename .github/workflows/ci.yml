@@ -47,7 +47,7 @@ jobs:
           components: clippy
 
       - name: Restore cargo registry & git
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.cargo/registry
@@ -56,7 +56,7 @@ jobs:
           restore-keys: cargo-deps-
 
       - name: Restore target/
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: target
           key: cargo-target-${{ runner.os }}-clippy-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
@@ -69,7 +69,7 @@ jobs:
 
       - name: Save cargo registry & git
         if: github.event_name == 'push'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             ~/.cargo/registry
@@ -78,7 +78,7 @@ jobs:
 
       - name: Save target/
         if: github.event_name == 'push'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: target
           key: cargo-target-${{ runner.os }}-clippy-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
@@ -97,7 +97,7 @@ jobs:
         uses: ./.github/actions/install-rust-toolchain
 
       - name: Restore cargo registry & git
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.cargo/registry
@@ -106,7 +106,7 @@ jobs:
           restore-keys: cargo-deps-
 
       - name: Restore target/
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: target
           key: cargo-target-${{ runner.os }}-test-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
@@ -125,7 +125,7 @@ jobs:
 
       - name: Save cargo registry & git
         if: github.event_name == 'push'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             ~/.cargo/registry
@@ -134,7 +134,7 @@ jobs:
 
       - name: Save target/
         if: github.event_name == 'push'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: target
           key: cargo-target-${{ runner.os }}-test-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
@@ -149,7 +149,7 @@ jobs:
         uses: ./.github/actions/install-rust-toolchain
 
       - name: Restore cargo registry & git
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.cargo/registry
@@ -158,7 +158,7 @@ jobs:
           restore-keys: cargo-deps-
 
       - name: Restore target/
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: target
           key: cargo-target-${{ runner.os }}-doc-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
@@ -173,7 +173,7 @@ jobs:
 
       - name: Save cargo registry & git
         if: github.event_name == 'push'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             ~/.cargo/registry
@@ -182,7 +182,7 @@ jobs:
 
       - name: Save target/
         if: github.event_name == 'push'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: target
           key: cargo-target-${{ runner.os }}-doc-${{ hashFiles('**/Cargo.lock') }}-${{ github.sha }}
@@ -203,7 +203,7 @@ jobs:
           toolchain: "1.85"
 
       - name: Restore cargo registry & git
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.cargo/registry
@@ -230,7 +230,7 @@ jobs:
         uses: ./.github/actions/install-rust-toolchain
 
       - name: Restore cargo registry & git
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.cargo/registry
@@ -240,7 +240,7 @@ jobs:
 
       - name: Restore cargo-audit binary
         id: cargo-audit-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cargo/bin/cargo-audit
           key: cargo-audit-${{ runner.os }}
@@ -254,7 +254,7 @@ jobs:
 
       - name: Save cargo registry & git
         if: github.event_name == 'push'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             ~/.cargo/registry
@@ -263,7 +263,7 @@ jobs:
 
       - name: Save cargo-audit binary
         if: github.event_name == 'push' && steps.cargo-audit-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: ~/.cargo/bin/cargo-audit
           key: cargo-audit-${{ runner.os }}

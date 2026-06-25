@@ -35,7 +35,7 @@ jobs:
       matrix:
         target: [parse_strict, parse_lenient]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install nightly Rust (cargo-fuzz requires nightly)
         uses: ./.github/actions/install-rust-toolchain

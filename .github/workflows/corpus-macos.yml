@@ -44,7 +44,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install libxml2 + pkg-config (Homebrew)
         # tests/common/mod.rs depends on the `libxml` crate, which needs

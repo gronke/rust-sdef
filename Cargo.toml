@@ -27,7 +27,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-quick-xml = { version = "0.40", features = ["serialize", "overlapped-lists"] }
+quick-xml = { version = "0.41", features = ["serialize", "overlapped-lists"] }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 
